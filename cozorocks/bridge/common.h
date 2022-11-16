@@ -2,8 +2,7 @@
  * Copyright 2022, The Cozo Project Authors. Licensed under MIT/Apache-2.0/BSD-3-Clause.
  */
 
-#ifndef COZOROCKS_ROCKS_BRIDGE_H
-#define COZOROCKS_ROCKS_BRIDGE_H
+#pragma once
 
 #include "rust/cxx.h"
 #include "rocksdb/db.h"
@@ -28,6 +27,3 @@ typedef Status::Code StatusCode;
 typedef Status::SubCode StatusSubCode;
 typedef Status::Severity StatusSeverity;
 typedef rust::Slice<const uint8_t> RustBytes;
-
-
-#endif //COZOROCKS_ROCKS_BRIDGE_H

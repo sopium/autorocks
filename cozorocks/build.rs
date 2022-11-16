@@ -79,6 +79,7 @@ fn main() {
     println!("cargo:rerun-if-changed=bridge/iter.h");
     println!("cargo:rerun-if-changed=bridge/tx.h");
     println!("cargo:rerun-if-changed=bridge/tx.cpp");
+    println!("cargo:rerun-if-changed=bridge/snapshot.h");
 
 
 

@@ -114,7 +114,13 @@ pub(crate) mod ffi {
 
         // type ReadOptions;
 
-        pub type SnapshotBridge;
+        type SnapshotBridge;
+        fn get(
+            self: &SnapshotBridge,
+            cf: usize,
+            key: &[u8],
+            status: &mut RocksDbStatus,
+        ) -> UniquePtr<PinnableSlice>;
 
         type RocksDbBridge;
         fn get_db_path(self: &RocksDbBridge) -> &CxxString;
@@ -122,12 +128,7 @@ pub(crate) mod ffi {
             builder: &'a DbOpts<'a>,
             status: &mut RocksDbStatus,
         ) -> SharedPtr<RocksDbBridge>;
-        fn del_range(
-            self: &RocksDbBridge,
-            lower: &[u8],
-            upper: &[u8],
-            status: &mut RocksDbStatus,
-        );
+        fn del_range(self: &RocksDbBridge, lower: &[u8], upper: &[u8], status: &mut RocksDbStatus);
         fn compact_range(
             self: &RocksDbBridge,
             cf: usize,
@@ -143,6 +144,7 @@ pub(crate) mod ffi {
         fn ingest_sst(self: &RocksDbBridge, path: &str, status: &mut RocksDbStatus);
 
         fn transact(db: SharedPtr<RocksDbBridge>) -> UniquePtr<TxBridge>;
+        fn snapshot(db: SharedPtr<RocksDbBridge>) -> UniquePtr<SnapshotBridge>;
 
         type SstFileWriterBridge;
         fn put(
@@ -188,6 +190,7 @@ pub(crate) mod ffi {
         fn reset(self: Pin<&mut IterBridge>);
         // fn get_r_opts(self: Pin<&mut IterBridge>) -> Pin<&mut ReadOptions>;
         fn set_cf(self: Pin<&mut IterBridge>, cf: usize);
+        fn set_snapshot(self: Pin<&mut IterBridge>, snapshot: &SnapshotBridge);
         fn clear_bounds(self: Pin<&mut IterBridge>);
         fn set_lower_bound(self: Pin<&mut IterBridge>, bound: &[u8]);
         fn set_upper_bound(self: Pin<&mut IterBridge>, bound: &[u8]);

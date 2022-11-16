@@ -7,6 +7,8 @@ use cxx::UniquePtr;
 
 use crate::bridge::ffi::*;
 
+use super::db::Snapshot;
+
 pub struct IterBuilder {
     pub(crate) inner: UniquePtr<IterBridge>,
 }
@@ -22,6 +24,10 @@ impl IterBuilder {
     }
     pub fn cf(mut self, cf: usize) -> Self {
         self.inner.pin_mut().set_cf(cf);
+        self
+    }
+    pub fn snapshot(mut self, snapshot: &Snapshot) -> Self {
+        self.inner.pin_mut().set_snapshot(&snapshot.inner);
         self
     }
     pub fn clear_bounds(&mut self) {

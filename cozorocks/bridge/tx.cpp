@@ -5,7 +5,8 @@
 #include "tx.h"
 #include "cozorocks/src/bridge/mod.rs.h"
 
-void TxBridge::start() {
+void TxBridge::start()
+{
     Transaction *txn = db->db->BeginTransaction(w_opts, tx_opts);
     tx.reset(txn);
     assert(tx);

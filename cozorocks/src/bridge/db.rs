@@ -6,6 +6,7 @@ use cxx::*;
 
 use crate::bridge::ffi::*;
 use crate::bridge::tx::TxBuilder;
+use crate::PinSlice;
 
 #[derive(Default, Clone)]
 pub struct DbBuilder<'a> {
@@ -132,6 +133,11 @@ impl RocksDb {
             inner: transact(self.inner.clone()),
         }
     }
+    pub fn get_snapshot(&self) -> Snapshot {
+        Snapshot {
+            inner: snapshot(self.inner.clone()),
+        }
+    }
     #[inline]
     pub fn range_del(&self, lower: &[u8], upper: &[u8]) -> Result<(), RocksDbStatus> {
         let mut status = RocksDbStatus::default();
@@ -143,7 +149,12 @@ impl RocksDb {
         }
     }
     #[inline]
-    pub fn range_compact(&self, cf: usize, lower: &[u8], upper: &[u8]) -> Result<(), RocksDbStatus> {
+    pub fn range_compact(
+        &self,
+        cf: usize,
+        lower: &[u8],
+        upper: &[u8],
+    ) -> Result<(), RocksDbStatus> {
         let mut status = RocksDbStatus::default();
         self.inner.compact_range(cf, lower, upper, &mut status);
         if status.is_ok() {
@@ -201,3 +212,25 @@ impl SstWriter {
 unsafe impl Send for RocksDb {}
 
 unsafe impl Sync for RocksDb {}
+
+pub struct Snapshot {
+    pub(crate) inner: UniquePtr<SnapshotBridge>,
+}
+
+impl Snapshot {
+    pub fn get(&self, cf: usize, key: &[u8]) -> Result<Option<PinSlice>, RocksDbStatus> {
+        let mut status = RocksDbStatus::default();
+        let slice = self.inner.get(cf, key, &mut status);
+        if status.is_ok() {
+            Ok(Some(PinSlice { inner: slice }))
+        } else if status.is_not_found() {
+            Ok(None)
+        } else {
+            Err(status)
+        }
+    }
+}
+
+unsafe impl Send for Snapshot {}
+
+unsafe impl Sync for Snapshot {}

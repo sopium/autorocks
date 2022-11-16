@@ -2,8 +2,7 @@
  * Copyright 2022, The Cozo Project Authors. Licensed under MIT/Apache-2.0/BSD-3-Clause.
  */
 
-#ifndef COZOROCKS_DB_H
-#define COZOROCKS_DB_H
+#pragma once
 
 #include <utility>
 
@@ -12,43 +11,36 @@
 #include "status.h"
 #include "slice.h"
 
-struct SnapshotBridge {
-    const Snapshot *snapshot;
-    DB *db;
-
-    explicit SnapshotBridge(const Snapshot *snapshot_, DB *db_) : snapshot(snapshot_), db(db_) {}
-
-    ~SnapshotBridge() {
-        db->ReleaseSnapshot(snapshot);
-//        printf("released snapshot\n");
-    }
-};
-
-struct SstFileWriterBridge {
+struct SstFileWriterBridge
+{
     SstFileWriter inner;
 
-    SstFileWriterBridge(EnvOptions eopts, Options opts) : inner(eopts, opts) {
+    SstFileWriterBridge(EnvOptions eopts, Options opts) : inner(eopts, opts)
+    {
     }
 
-    inline void finish(RocksDbStatus &status) {
+    inline void finish(RocksDbStatus &status)
+    {
         write_status(inner.Finish(), status);
     }
 
-    inline void put(RustBytes key, RustBytes val, RocksDbStatus &status) {
+    inline void put(RustBytes key, RustBytes val, RocksDbStatus &status)
+    {
         write_status(inner.Put(convert_slice(key), convert_slice(val)), status);
     }
-
 };
 
-struct RocksDbBridge {
+struct RocksDbBridge
+{
     unique_ptr<TransactionDB> db;
 
-    std::vector<ColumnFamilyHandle*> cf_handles;
+    std::vector<ColumnFamilyHandle *> cf_handles;
 
     bool destroy_on_exit;
     string db_path;
 
-    inline unique_ptr<SstFileWriterBridge> get_sst_writer(rust::Str path, RocksDbStatus &status) const {
+    inline unique_ptr<SstFileWriterBridge> get_sst_writer(rust::Str path, RocksDbStatus &status) const
+    {
         DB *db_ = get_base_db();
         auto cf = db->DefaultColumnFamily();
         Options options_ = db_->GetOptions(cf);
@@ -59,7 +51,8 @@ struct RocksDbBridge {
         return sst_file_writer;
     }
 
-    inline void ingest_sst(rust::Str path, RocksDbStatus &status) const {
+    inline void ingest_sst(rust::Str path, RocksDbStatus &status) const
+    {
         IngestExternalFileOptions ifo;
         DB *db_ = get_base_db();
         string path_(path);
@@ -67,15 +60,18 @@ struct RocksDbBridge {
         write_status(db_->IngestExternalFile(cf, {std::move(path_)}, ifo), status);
     }
 
-    [[nodiscard]] inline const string &get_db_path() const {
+    [[nodiscard]] inline const string &get_db_path() const
+    {
         return db_path;
     }
 
-    inline void del_range(RustBytes start, RustBytes end, RocksDbStatus &status) const {
+    inline void del_range(RustBytes start, RustBytes end, RocksDbStatus &status) const
+    {
         WriteBatch batch;
         auto cf = db->DefaultColumnFamily();
         auto s = batch.DeleteRange(cf, convert_slice(start), convert_slice(end));
-        if (!s.ok()) {
+        if (!s.ok())
+        {
             write_status(s, status);
             return;
         }
@@ -87,7 +83,8 @@ struct RocksDbBridge {
         write_status(s2, status);
     }
 
-    void compact_range(size_t cf, RustBytes start, RustBytes end, RocksDbStatus &status) const {
+    void compact_range(size_t cf, RustBytes start, RustBytes end, RocksDbStatus &status) const
+    {
         CompactRangeOptions options;
         auto cf_handle = cf_handles[cf];
         auto start_s = convert_slice(start);
@@ -96,7 +93,8 @@ struct RocksDbBridge {
         write_status(s, status);
     }
 
-    DB *get_base_db() const {
+    DB *get_base_db() const
+    {
         return db->GetBaseDB();
     }
 
@@ -108,7 +106,10 @@ struct TxBridge;
 unique_ptr<TxBridge>
 transact(shared_ptr<RocksDbBridge> db);
 
+struct SnapshotBridge;
+
+unique_ptr<SnapshotBridge>
+snapshot(shared_ptr<RocksDbBridge> db);
+
 shared_ptr<RocksDbBridge>
 open_db(const DbOpts &opts, RocksDbStatus &status);
-
-#endif //COZOROCKS_DB_H
