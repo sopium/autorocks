@@ -88,9 +88,9 @@ impl Tx {
         self.inner.pin_mut().clear_snapshot()
     }
     #[inline]
-    pub fn put(&mut self, key: &[u8], val: &[u8]) -> Result<(), RocksDbStatus> {
+    pub fn put(&mut self, cf: usize, key: &[u8], val: &[u8]) -> Result<(), RocksDbStatus> {
         let mut status = RocksDbStatus::default();
-        self.inner.pin_mut().put(key, val, &mut status);
+        self.inner.pin_mut().put(cf, key, val, &mut status);
         if status.is_ok() {
             Ok(())
         } else {
@@ -98,9 +98,9 @@ impl Tx {
         }
     }
     #[inline]
-    pub fn del(&mut self, key: &[u8]) -> Result<(), RocksDbStatus> {
+    pub fn del(&mut self, cf: usize, key: &[u8]) -> Result<(), RocksDbStatus> {
         let mut status = RocksDbStatus::default();
-        self.inner.pin_mut().del(key, &mut status);
+        self.inner.pin_mut().del(cf, key, &mut status);
         if status.is_ok() {
             Ok(())
         } else {
@@ -108,22 +108,12 @@ impl Tx {
         }
     }
     #[inline]
-    pub fn get(&self, key: &[u8], for_update: bool) -> Result<Option<PinSlice>, RocksDbStatus> {
+    pub fn get(&self, cf: usize, key: &[u8], for_update: bool) -> Result<Option<PinSlice>, RocksDbStatus> {
         let mut status = RocksDbStatus::default();
-        let ret = self.inner.get(key, for_update, &mut status);
+        let ret = self.inner.get(cf, key, for_update, &mut status);
         match status.code {
             StatusCode::kOk => Ok(Some(PinSlice { inner: ret })),
             StatusCode::kNotFound => Ok(None),
-            _ => Err(status),
-        }
-    }
-    #[inline]
-    pub fn exists(&self, key: &[u8], for_update: bool) -> Result<bool, RocksDbStatus> {
-        let mut status = RocksDbStatus::default();
-        self.inner.exists(key, for_update, &mut status);
-        match status.code {
-            StatusCode::kOk => Ok(true),
-            StatusCode::kNotFound => Ok(false),
             _ => Err(status),
         }
     }

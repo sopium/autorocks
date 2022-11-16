@@ -33,6 +33,8 @@ impl<'a> Default for DbOpts<'a> {
             use_fixed_prefix_extractor: false,
             fixed_prefix_extractor_len: 0,
             destroy_on_exit: false,
+            options_path: "",
+            column_families: 1,
         }
     }
 }
@@ -40,6 +42,14 @@ impl<'a> Default for DbOpts<'a> {
 impl<'a> DbBuilder<'a> {
     pub fn path(mut self, path: &'a str) -> Self {
         self.opts.db_path = path;
+        self
+    }
+    pub fn options_path(mut self, path: &'a str) -> Self {
+        self.opts.options_path = path;
+        self
+    }
+    pub fn column_families(mut self, column_families: usize) -> Self {
+        self.opts.column_families = column_families;
         self
     }
     pub fn prepare_for_bulk_load(mut self, val: bool) -> Self {
@@ -99,10 +109,7 @@ impl<'a> DbBuilder<'a> {
     pub fn build(self) -> Result<RocksDb, RocksDbStatus> {
         let mut status = RocksDbStatus::default();
 
-        let result = open_db(
-            &self.opts,
-            &mut status,
-        );
+        let result = open_db(&self.opts, &mut status);
         if status.is_ok() {
             Ok(RocksDb { inner: result })
         } else {
@@ -122,7 +129,7 @@ impl RocksDb {
     }
     pub fn transact(&self) -> TxBuilder {
         TxBuilder {
-            inner: self.inner.transact(),
+            inner: transact(self.inner.clone()),
         }
     }
     #[inline]
@@ -136,9 +143,9 @@ impl RocksDb {
         }
     }
     #[inline]
-    pub fn range_compact(&self, lower: &[u8], upper: &[u8]) -> Result<(), RocksDbStatus> {
+    pub fn range_compact(&self, cf: usize, lower: &[u8], upper: &[u8]) -> Result<(), RocksDbStatus> {
         let mut status = RocksDbStatus::default();
-        self.inner.compact_range(lower, upper, &mut status);
+        self.inner.compact_range(cf, lower, upper, &mut status);
         if status.is_ok() {
             Ok(())
         } else {

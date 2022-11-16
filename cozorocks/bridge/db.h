@@ -9,7 +9,7 @@
 
 #include "iostream"
 #include "common.h"
-#include "tx.h"
+#include "status.h"
 #include "slice.h"
 
 struct SnapshotBridge {
@@ -43,6 +43,8 @@ struct SstFileWriterBridge {
 struct RocksDbBridge {
     unique_ptr<TransactionDB> db;
 
+    std::vector<ColumnFamilyHandle*> cf_handles;
+
     bool destroy_on_exit;
     string db_path;
 
@@ -69,12 +71,6 @@ struct RocksDbBridge {
         return db_path;
     }
 
-
-    [[nodiscard]] inline unique_ptr<TxBridge> transact() const {
-        auto ret = make_unique<TxBridge>(&*this->db, db->DefaultColumnFamily());
-        return ret;
-    }
-
     inline void del_range(RustBytes start, RustBytes end, RocksDbStatus &status) const {
         WriteBatch batch;
         auto cf = db->DefaultColumnFamily();
@@ -91,12 +87,12 @@ struct RocksDbBridge {
         write_status(s2, status);
     }
 
-    void compact_range(RustBytes start, RustBytes end, RocksDbStatus &status) const {
+    void compact_range(size_t cf, RustBytes start, RustBytes end, RocksDbStatus &status) const {
         CompactRangeOptions options;
-        auto cf = db->DefaultColumnFamily();
+        auto cf_handle = cf_handles[cf];
         auto start_s = convert_slice(start);
         auto end_s = convert_slice(end);
-        auto s = db->CompactRange(options, cf, &start_s, &end_s);
+        auto s = db->CompactRange(options, cf_handle, &start_s, &end_s);
         write_status(s, status);
     }
 
@@ -106,6 +102,11 @@ struct RocksDbBridge {
 
     ~RocksDbBridge();
 };
+
+struct TxBridge;
+
+unique_ptr<TxBridge>
+transact(shared_ptr<RocksDbBridge> db);
 
 shared_ptr<RocksDbBridge>
 open_db(const DbOpts &opts, RocksDbStatus &status);

@@ -9,31 +9,26 @@
 #include "slice.h"
 #include "status.h"
 #include "iter.h"
+#include "db.h"
 
 struct TxBridge {
-    OptimisticTransactionDB *odb;
-    TransactionDB *tdb;
     unique_ptr<Transaction> tx;
-    unique_ptr<WriteOptions> w_opts;
-    unique_ptr<ReadOptions> r_opts;
-    unique_ptr<OptimisticTransactionOptions> o_tx_opts;
-    unique_ptr<TransactionOptions> p_tx_opts;
-    ColumnFamilyHandle * cf_handle;
+    WriteOptions w_opts;
+    ReadOptions r_opts;
+    TransactionOptions tx_opts;
+    shared_ptr<RocksDbBridge> db;
 
-    explicit TxBridge(TransactionDB *tdb_, ColumnFamilyHandle * cf_handle_) :
-            odb(nullptr),
-            tdb(tdb_),
+    explicit TxBridge(shared_ptr<RocksDbBridge> _db) :
             tx(),
-            w_opts(new WriteOptions),
-            r_opts(new ReadOptions),
-            o_tx_opts(nullptr),
-            p_tx_opts(new TransactionOptions),
-            cf_handle(cf_handle_) {
-        r_opts->ignore_range_deletions = true;
+            w_opts(),
+            r_opts(),
+            tx_opts(),
+            db(_db) {
+        r_opts.ignore_range_deletions = true;
     }
 
     inline WriteOptions &get_w_opts() {
-        return *w_opts;
+        return w_opts;
     }
 
 //    inline ReadOptions &get_r_opts() {
@@ -41,15 +36,17 @@ struct TxBridge {
 //    }
 
     inline void verify_checksums(bool val) {
-        r_opts->verify_checksums = val;
+        r_opts.verify_checksums = val;
     }
 
     inline void fill_cache(bool val) {
-        r_opts->fill_cache = val;
+        r_opts.fill_cache = val;
     }
 
     inline unique_ptr<IterBridge> iterator() const {
-        return make_unique<IterBridge>(&*tx);
+        auto iter = make_unique<IterBridge>(db);
+        iter->tx = &*tx;
+        return iter;
     };
 
     inline void set_snapshot(bool val) {
@@ -57,10 +54,8 @@ struct TxBridge {
             if (val) {
                 tx->SetSnapshot();
             }
-        } else if (o_tx_opts != nullptr) {
-            o_tx_opts->set_snapshot = val;
-        } else if (p_tx_opts != nullptr) {
-            p_tx_opts->set_snapshot = val;
+        } else {
+            tx_opts.set_snapshot = val;
         }
     }
 
@@ -68,47 +63,30 @@ struct TxBridge {
         tx->ClearSnapshot();
     }
 
-    [[nodiscard]] inline DB *get_db() const {
-        if (tdb != nullptr) {
-            return tdb;
-        } else {
-            return odb;
-        }
-    }
-
     void start();
 
-    inline unique_ptr<PinnableSlice> get(RustBytes key, bool for_update, RocksDbStatus &status) const {
+    inline unique_ptr<PinnableSlice> get(size_t cf, RustBytes key, bool for_update, RocksDbStatus &status) const {
         Slice key_ = convert_slice(key);
         auto ret = make_unique<PinnableSlice>();
+        auto cf_handle = db->cf_handles[cf];
         if (for_update) {
-            auto s = tx->GetForUpdate(*r_opts, cf_handle, key_, &*ret);
+            auto s = tx->GetForUpdate(r_opts, cf_handle, key_, &*ret);
             write_status(s, status);
         } else {
-            auto s = tx->Get(*r_opts, key_, &*ret);
+            auto s = tx->Get(r_opts, cf_handle, key_, &*ret);
             write_status(s, status);
         }
         return ret;
     }
 
-    inline void exists(RustBytes key, bool for_update, RocksDbStatus &status) const {
-        Slice key_ = convert_slice(key);
-        auto ret = PinnableSlice();
-        if (for_update) {
-            auto s = tx->GetForUpdate(*r_opts, cf_handle, key_, &ret);
-            write_status(s, status);
-        } else {
-            auto s = tx->Get(*r_opts, key_, &ret);
-            write_status(s, status);
-        }
+    inline void put(size_t cf, RustBytes key, RustBytes val, RocksDbStatus &status) {
+        auto cf_handle = db->cf_handles[cf];
+        write_status(tx->Put(cf_handle, convert_slice(key), convert_slice(val)), status);
     }
 
-    inline void put(RustBytes key, RustBytes val, RocksDbStatus &status) {
-        write_status(tx->Put(convert_slice(key), convert_slice(val)), status);
-    }
-
-    inline void del(RustBytes key, RocksDbStatus &status) {
-        write_status(tx->Delete(convert_slice(key)), status);
+    inline void del(size_t cf, RustBytes key, RocksDbStatus &status) {
+        auto cf_handle = db->cf_handles[cf];
+        write_status(tx->Delete(cf_handle, convert_slice(key)), status);
     }
 
     inline void commit(RocksDbStatus &status) {

@@ -35,6 +35,8 @@ pub(crate) mod ffi {
         pub use_fixed_prefix_extractor: bool,
         pub fixed_prefix_extractor_len: usize,
         pub destroy_on_exit: bool,
+        pub options_path: &'a str,
+        pub column_families: usize,
     }
 
     #[derive(Clone, Debug, Eq, PartialEq)]
@@ -120,7 +122,6 @@ pub(crate) mod ffi {
             builder: &'a DbOpts<'a>,
             status: &mut RocksDbStatus,
         ) -> SharedPtr<RocksDbBridge>;
-        fn transact(self: &RocksDbBridge) -> UniquePtr<TxBridge>;
         fn del_range(
             self: &RocksDbBridge,
             lower: &[u8],
@@ -129,6 +130,7 @@ pub(crate) mod ffi {
         );
         fn compact_range(
             self: &RocksDbBridge,
+            cf: usize,
             lower: &[u8],
             upper: &[u8],
             status: &mut RocksDbStatus,
@@ -139,6 +141,8 @@ pub(crate) mod ffi {
             status: &mut RocksDbStatus,
         ) -> UniquePtr<SstFileWriterBridge>;
         fn ingest_sst(self: &RocksDbBridge, path: &str, status: &mut RocksDbStatus);
+
+        fn transact(db: SharedPtr<RocksDbBridge>) -> UniquePtr<TxBridge>;
 
         type SstFileWriterBridge;
         fn put(
@@ -159,23 +163,19 @@ pub(crate) mod ffi {
         fn clear_snapshot(self: Pin<&mut TxBridge>);
         fn get(
             self: &TxBridge,
+            cf: usize,
             key: &[u8],
             for_update: bool,
             status: &mut RocksDbStatus,
         ) -> UniquePtr<PinnableSlice>;
-        fn exists(
-            self: &TxBridge,
-            key: &[u8],
-            for_update: bool,
-            status: &mut RocksDbStatus,
-        );
         fn put(
             self: Pin<&mut TxBridge>,
+            cf: usize,
             key: &[u8],
             val: &[u8],
             status: &mut RocksDbStatus,
         );
-        fn del(self: Pin<&mut TxBridge>, key: &[u8], status: &mut RocksDbStatus);
+        fn del(self: Pin<&mut TxBridge>, cf: usize, key: &[u8], status: &mut RocksDbStatus);
         fn commit(self: Pin<&mut TxBridge>, status: &mut RocksDbStatus);
         fn rollback(self: Pin<&mut TxBridge>, status: &mut RocksDbStatus);
         fn rollback_to_savepoint(self: Pin<&mut TxBridge>, status: &mut RocksDbStatus);
@@ -187,6 +187,7 @@ pub(crate) mod ffi {
         fn start(self: Pin<&mut IterBridge>);
         fn reset(self: Pin<&mut IterBridge>);
         // fn get_r_opts(self: Pin<&mut IterBridge>) -> Pin<&mut ReadOptions>;
+        fn set_cf(self: Pin<&mut IterBridge>, cf: usize);
         fn clear_bounds(self: Pin<&mut IterBridge>);
         fn set_lower_bound(self: Pin<&mut IterBridge>, bound: &[u8]);
         fn set_upper_bound(self: Pin<&mut IterBridge>, bound: &[u8]);

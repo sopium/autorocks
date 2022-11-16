@@ -20,6 +20,10 @@ impl IterBuilder {
         self.inner.pin_mut().start();
         DbIter { inner: self.inner }
     }
+    pub fn cf(mut self, cf: usize) -> Self {
+        self.inner.pin_mut().set_cf(cf);
+        self
+    }
     pub fn clear_bounds(&mut self) {
         self.inner.pin_mut().clear_bounds();
     }

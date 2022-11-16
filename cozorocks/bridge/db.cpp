@@ -47,6 +47,33 @@ ColumnFamilyOptions default_cf_options() {
 
 shared_ptr<RocksDbBridge> open_db(const DbOpts &opts, RocksDbStatus &status) {
     auto options = default_db_options();
+    // Load options from file.
+    auto cf_descs = vector<ColumnFamilyDescriptor>();
+    if (!opts.options_path.empty()) {
+        write_status(
+            LoadOptionsFromFile(string(opts.options_path), Env::Default(), &options, &cf_descs),
+            status
+        );
+        if (status.code != StatusCode::kOk) {
+            return make_shared<RocksDbBridge>();
+        }
+    }
+    // Fill missing column family descriptors.
+    auto cf_map = map<string, ColumnFamilyDescriptor>();
+    for (ColumnFamilyDescriptor desc: cf_descs) {
+        cf_map.emplace(desc.name, move(desc));
+    }
+    cf_descs.clear();
+    auto cf_default = cf_map["default"];
+    cf_map.erase("default");
+    for (size_t i = 0; i < opts.column_families; i++) {
+        auto name = to_string(i);
+        cf_map.emplace(name, ColumnFamilyDescriptor(name, cf_default.options));
+    }
+    for (auto&& pair: cf_map) {
+        cf_descs.push_back(pair.second);
+    }
+    cf_descs.push_back(cf_default);
 
     if (opts.prepare_for_bulk_load) {
         options.PrepareForBulkLoad();
@@ -87,8 +114,9 @@ shared_ptr<RocksDbBridge> open_db(const DbOpts &opts, RocksDbStatus &status) {
     db->db_path = string(opts.db_path);
 
     TransactionDB *txn_db = nullptr;
+    vector<ColumnFamilyHandle*> cf_handles;
     write_status(
-            TransactionDB::Open(options, TransactionDBOptions(), db->db_path,&txn_db),
+            TransactionDB::Open(options, TransactionDBOptions(), db->db_path, cf_descs, &db->cf_handles, &txn_db),
             status);
     db->db.reset(txn_db);
     db->destroy_on_exit = opts.destroy_on_exit;
@@ -111,4 +139,8 @@ RocksDbBridge::~RocksDbBridge() {
             cerr << status2.ToString() << endl;
         }
     }
+}
+
+unique_ptr<TxBridge> transact(shared_ptr<RocksDbBridge> db) {
+    return make_unique<TxBridge>(db);
 }

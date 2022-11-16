@@ -8,26 +8,34 @@
 #include "common.h"
 #include "slice.h"
 #include "status.h"
+#include "db.h"
 
 struct IterBridge {
-    DB *db;
     Transaction *tx;
     unique_ptr<Iterator> iter;
     string lower_storage;
     string upper_storage;
     Slice lower_bound;
     Slice upper_bound;
-    unique_ptr<ReadOptions> r_opts;
+    size_t cf;
+    shared_ptr<RocksDbBridge> db_bridge;
+    ReadOptions r_opts;
 
-    explicit IterBridge(Transaction *tx_) : db(nullptr), tx(tx_), iter(nullptr), lower_bound(),
-                                                                     upper_bound(),
-                                                                     r_opts(new ReadOptions) {
-        r_opts->ignore_range_deletions = true;
-        r_opts->auto_prefix_mode = true;
+    explicit IterBridge(shared_ptr<RocksDbBridge> db_bridge_)
+        : lower_bound(),
+          upper_bound(),
+          db_bridge(db_bridge_),
+          r_opts() {
+        r_opts.ignore_range_deletions = true;
+        r_opts.auto_prefix_mode = true;
+    }
+
+    inline void set_cf(size_t cf_) {
+        cf = cf_;
     }
 
     inline void set_snapshot(const Snapshot *snapshot) {
-        r_opts->snapshot = snapshot;
+        r_opts.snapshot = snapshot;
     }
 
 //    inline ReadOptions &get_r_opts() {
@@ -35,36 +43,36 @@ struct IterBridge {
 //    }
 
     inline void verify_checksums(bool val) {
-        r_opts->verify_checksums = val;
+        r_opts.verify_checksums = val;
     }
 
     inline void fill_cache(bool val) {
-        r_opts->fill_cache = val;
+        r_opts.fill_cache = val;
     }
 
     inline void tailing(bool val) {
-        r_opts->tailing = val;
+        r_opts.tailing = val;
     }
 
     inline void total_order_seek(bool val) {
-        r_opts->total_order_seek = val;
+        r_opts.total_order_seek = val;
     }
 
     inline void auto_prefix_mode(bool val) {
-        r_opts->auto_prefix_mode = val;
+        r_opts.auto_prefix_mode = val;
     }
 
     inline void prefix_same_as_start(bool val) {
-        r_opts->prefix_same_as_start = val;
+        r_opts.prefix_same_as_start = val;
     }
 
     inline void pin_data(bool val) {
-        r_opts->pin_data = val;
+        r_opts.pin_data = val;
     }
 
     inline void clear_bounds() {
-        r_opts->iterate_lower_bound = nullptr;
-        r_opts->iterate_upper_bound = nullptr;
+        r_opts.iterate_lower_bound = nullptr;
+        r_opts.iterate_upper_bound = nullptr;
         lower_bound.clear();
         upper_bound.clear();
     }
@@ -72,20 +80,21 @@ struct IterBridge {
     inline void set_lower_bound(RustBytes bound) {
         lower_storage = convert_slice_to_string(bound);
         lower_bound = lower_storage;
-        r_opts->iterate_lower_bound = &lower_bound;
+        r_opts.iterate_lower_bound = &lower_bound;
     }
 
     inline void set_upper_bound(RustBytes bound) {
         upper_storage = convert_slice_to_string(bound);
         upper_bound = upper_storage;
-        r_opts->iterate_upper_bound = &upper_bound;
+        r_opts.iterate_upper_bound = &upper_bound;
     }
 
     inline void start() {
-        if (db == nullptr) {
-            iter.reset(tx->GetIterator(*r_opts));
+        auto cf_handle = db_bridge->cf_handles[cf];
+        if (tx) {
+            iter.reset(tx->GetIterator(r_opts, cf_handle));
         } else {
-            iter.reset(db->NewIterator(*r_opts));
+            iter.reset(db_bridge->db->NewIterator(r_opts, cf_handle));
         }
     }
 
