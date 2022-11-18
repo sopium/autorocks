@@ -34,7 +34,6 @@ pub(crate) mod ffi {
         pub capped_prefix_extractor_len: usize,
         pub use_fixed_prefix_extractor: bool,
         pub fixed_prefix_extractor_len: usize,
-        pub destroy_on_exit: bool,
         pub options_path: &'a str,
         pub column_families: usize,
     }
@@ -106,6 +105,7 @@ pub(crate) mod ffi {
         type StatusSeverity;
         type WriteOptions;
         type PinnableSlice;
+        fn Reset(self: Pin<&mut PinnableSlice>);
         fn convert_pinnable_slice_back(s: &PinnableSlice) -> &[u8];
 
         fn set_w_opts_sync(o: Pin<&mut WriteOptions>, val: bool);
@@ -115,15 +115,14 @@ pub(crate) mod ffi {
         // type ReadOptions;
 
         type SnapshotBridge;
-        fn get(
-            self: &SnapshotBridge,
+        fn get<'a, 'b>(
+            self: Pin<&'a mut SnapshotBridge>,
             cf: usize,
-            key: &[u8],
-            status: &mut RocksDbStatus,
-        ) -> UniquePtr<PinnableSlice>;
+            key: &'b [u8],
+            status: &'b mut RocksDbStatus,
+        ) -> Pin<&'a mut PinnableSlice>;
 
         type RocksDbBridge;
-        fn get_db_path(self: &RocksDbBridge) -> &CxxString;
         fn open_db<'a>(
             builder: &'a DbOpts<'a>,
             status: &mut RocksDbStatus,
@@ -163,13 +162,14 @@ pub(crate) mod ffi {
         fn start(self: Pin<&mut TxBridge>);
         fn set_snapshot(self: Pin<&mut TxBridge>, val: bool);
         fn clear_snapshot(self: Pin<&mut TxBridge>);
-        fn get(
-            self: &TxBridge,
+        fn get<'a, 'b>(
+            self: Pin<&'a mut TxBridge>,
             cf: usize,
-            key: &[u8],
+            key: &'b [u8],
             for_update: bool,
-            status: &mut RocksDbStatus,
-        ) -> UniquePtr<PinnableSlice>;
+            use_snapshot: bool,
+            status: &'b mut RocksDbStatus,
+        ) -> Pin<&'a mut PinnableSlice>;
         fn put(
             self: Pin<&mut TxBridge>,
             cf: usize,
@@ -183,7 +183,7 @@ pub(crate) mod ffi {
         fn rollback_to_savepoint(self: Pin<&mut TxBridge>, status: &mut RocksDbStatus);
         fn pop_savepoint(self: Pin<&mut TxBridge>, status: &mut RocksDbStatus);
         fn set_savepoint(self: Pin<&mut TxBridge>);
-        fn iterator(self: &TxBridge) -> UniquePtr<IterBridge>;
+        fn iterator(self: &TxBridge, use_snapshot: bool) -> UniquePtr<IterBridge>;
 
         type IterBridge;
         fn start(self: Pin<&mut IterBridge>);

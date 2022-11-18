@@ -6,7 +6,8 @@ use cxx::*;
 
 use crate::bridge::ffi::*;
 use crate::bridge::tx::TxBuilder;
-use crate::PinSlice;
+
+use super::tx::PinSliceRef;
 
 #[derive(Default, Clone)]
 pub struct DbBuilder<'a> {
@@ -33,7 +34,6 @@ impl<'a> Default for DbOpts<'a> {
             capped_prefix_extractor_len: 0,
             use_fixed_prefix_extractor: false,
             fixed_prefix_extractor_len: 0,
-            destroy_on_exit: false,
             options_path: "",
             column_families: 1,
         }
@@ -125,9 +125,6 @@ pub struct RocksDb {
 }
 
 impl RocksDb {
-    pub fn db_path(&self) -> std::string::String {
-        self.inner.get_db_path().to_string_lossy().to_string()
-    }
     pub fn transact(&self) -> TxBuilder {
         TxBuilder {
             inner: transact(self.inner.clone()),
@@ -218,11 +215,11 @@ pub struct Snapshot {
 }
 
 impl Snapshot {
-    pub fn get(&self, cf: usize, key: &[u8]) -> Result<Option<PinSlice>, RocksDbStatus> {
+    pub fn get<'a, 'b>(&'a mut self, cf: usize, key: &'b [u8]) -> Result<Option<PinSliceRef<'a>>, RocksDbStatus> {
         let mut status = RocksDbStatus::default();
-        let slice = self.inner.get(cf, key, &mut status);
+        let slice = self.inner.pin_mut().get(cf, key, &mut status);
         if status.is_ok() {
-            Ok(Some(PinSlice { inner: slice }))
+            Ok(Some(PinSliceRef { inner: slice }))
         } else if status.is_not_found() {
             Ok(None)
         } else {

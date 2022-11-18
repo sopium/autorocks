@@ -36,9 +36,6 @@ struct RocksDbBridge
 
     std::vector<ColumnFamilyHandle *> cf_handles;
 
-    bool destroy_on_exit;
-    string db_path;
-
     inline unique_ptr<SstFileWriterBridge> get_sst_writer(rust::Str path, RocksDbStatus &status) const
     {
         DB *db_ = get_base_db();
@@ -58,11 +55,6 @@ struct RocksDbBridge
         string path_(path);
         auto cf = db->DefaultColumnFamily();
         write_status(db_->IngestExternalFile(cf, {std::move(path_)}, ifo), status);
-    }
-
-    [[nodiscard]] inline const string &get_db_path() const
-    {
-        return db_path;
     }
 
     inline void del_range(RustBytes start, RustBytes end, RocksDbStatus &status) const
@@ -97,8 +89,6 @@ struct RocksDbBridge
     {
         return db->GetBaseDB();
     }
-
-    ~RocksDbBridge();
 };
 
 struct TxBridge;

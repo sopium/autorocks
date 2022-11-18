@@ -4,6 +4,7 @@
 
 use std::fmt::{Debug, Formatter};
 use std::ops::Deref;
+use std::pin::Pin;
 
 use cxx::*;
 
@@ -14,21 +15,27 @@ pub struct TxBuilder {
     pub(crate) inner: UniquePtr<TxBridge>,
 }
 
-pub struct PinSlice {
-    pub(crate) inner: UniquePtr<PinnableSlice>,
+pub struct PinSliceRef<'a> {
+    pub(crate) inner: Pin<&'a mut PinnableSlice>,
 }
 
-impl Deref for PinSlice {
+impl Deref for PinSliceRef<'_> {
     type Target = [u8];
     fn deref(&self) -> &Self::Target {
         convert_pinnable_slice_back(&self.inner)
     }
 }
 
-impl Debug for PinSlice {
+impl Debug for PinSliceRef<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let to_d: &[u8] = self;
         write!(f, "{:?}", to_d)
+    }
+}
+
+impl Drop for PinSliceRef<'_> {
+    fn drop(&mut self) {
+        self.inner.as_mut().Reset();
     }
 }
 
@@ -108,11 +115,20 @@ impl Tx {
         }
     }
     #[inline]
-    pub fn get(&self, cf: usize, key: &[u8], for_update: bool) -> Result<Option<PinSlice>, RocksDbStatus> {
+    pub fn get<'a, 'b>(
+        &'a mut self,
+        cf: usize,
+        key: &'b [u8],
+        for_update: bool,
+        use_snapshot: bool,
+    ) -> Result<Option<PinSliceRef<'a>>, RocksDbStatus> {
         let mut status = RocksDbStatus::default();
-        let ret = self.inner.get(cf, key, for_update, &mut status);
+        let ret = self
+            .inner
+            .pin_mut()
+            .get(cf, key, for_update, use_snapshot, &mut status);
         match status.code {
-            StatusCode::kOk => Ok(Some(PinSlice { inner: ret })),
+            StatusCode::kOk => Ok(Some(PinSliceRef { inner: ret })),
             StatusCode::kNotFound => Ok(None),
             _ => Err(status),
         }
@@ -162,10 +178,10 @@ impl Tx {
         }
     }
     #[inline]
-    pub fn iterator(&self) -> IterBuilder {
+    pub fn iterator(&self, use_snapshot: bool) -> IterBuilder {
         IterBuilder {
-            inner: self.inner.iterator(),
+            inner: self.inner.iterator(use_snapshot),
         }
-            .auto_prefix_mode(true)
+        .auto_prefix_mode(true)
     }
 }

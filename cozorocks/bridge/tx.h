@@ -17,6 +17,7 @@ struct TxBridge
     ReadOptions r_opts;
     TransactionOptions tx_opts;
     shared_ptr<RocksDbBridge> db;
+    PinnableSlice slice;
 
     explicit TxBridge(shared_ptr<RocksDbBridge> _db)
         : db(_db)
@@ -43,10 +44,14 @@ struct TxBridge
         r_opts.fill_cache = val;
     }
 
-    inline unique_ptr<IterBridge> iterator() const
+    inline unique_ptr<IterBridge> iterator(bool use_snapshot) const
     {
         auto iter = make_unique<IterBridge>(db);
         iter->tx = &*tx;
+        if (use_snapshot)
+        {
+            iter->r_opts.snapshot = tx->GetSnapshot();
+        }
         return iter;
     };
 
@@ -72,22 +77,26 @@ struct TxBridge
 
     void start();
 
-    inline unique_ptr<PinnableSlice> get(size_t cf, RustBytes key, bool for_update, RocksDbStatus &status) const
+    PinnableSlice &get(size_t cf, RustBytes key, bool for_update, bool use_snapshot, RocksDbStatus &status)
     {
         Slice key_ = convert_slice(key);
-        auto ret = make_unique<PinnableSlice>();
         auto cf_handle = db->cf_handles[cf];
+        if (use_snapshot)
+        {
+            r_opts.snapshot = tx->GetSnapshot();
+        }
         if (for_update)
         {
-            auto s = tx->GetForUpdate(r_opts, cf_handle, key_, &*ret);
+            auto s = tx->GetForUpdate(r_opts, cf_handle, key_, &slice);
             write_status(s, status);
         }
         else
         {
-            auto s = tx->Get(r_opts, cf_handle, key_, &*ret);
+            auto s = tx->Get(r_opts, cf_handle, key_, &slice);
             write_status(s, status);
         }
-        return ret;
+        r_opts.snapshot = nullptr;
+        return slice;
     }
 
     inline void put(size_t cf, RustBytes key, RustBytes val, RocksDbStatus &status)

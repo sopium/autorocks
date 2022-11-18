@@ -17,9 +17,12 @@ fn test_db_open() {
     let mut tx = db.transact().start();
     tx.put(2, b"key", b"value").unwrap();
     tx.put(2, b"key1", b"value1").unwrap();
-    assert_eq!(&*tx.get(2, b"key2", false).unwrap().unwrap(), b"value2");
+    assert_eq!(
+        &*tx.get(2, b"key2", false, false).unwrap().unwrap(),
+        b"value2"
+    );
 
-    let mut iter = tx.iterator().cf(2).start();
+    let mut iter = tx.iterator(false).cf(2).start();
     iter.seek(b"key1");
     assert_eq!(&*iter.key().unwrap().unwrap(), b"key1");
     iter.next();
@@ -42,7 +45,7 @@ fn test_snapshot() {
     tx.del(0, b"key").unwrap();
     tx.commit().unwrap();
 
-    let snap = db.get_snapshot();
+    let mut snap = db.get_snapshot();
 
     let mut tx = db.transact().set_snapshot(true).start();
     tx.put(0, b"key", b"value").unwrap();

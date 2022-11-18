@@ -126,37 +126,14 @@ shared_ptr<RocksDbBridge> open_db(const DbOpts &opts, RocksDbStatus &status)
 
     shared_ptr<RocksDbBridge> db = make_shared<RocksDbBridge>();
 
-    db->db_path = string(opts.db_path);
-
     TransactionDB *txn_db = nullptr;
     vector<ColumnFamilyHandle *> cf_handles;
     write_status(
-        TransactionDB::Open(options, TransactionDBOptions(), db->db_path, cf_descs, &db->cf_handles, &txn_db),
+        TransactionDB::Open(options, TransactionDBOptions(), string(opts.db_path), cf_descs, &db->cf_handles, &txn_db),
         status);
     db->db.reset(txn_db);
-    db->destroy_on_exit = opts.destroy_on_exit;
 
     return db;
-}
-
-RocksDbBridge::~RocksDbBridge()
-{
-    if (destroy_on_exit && (db != nullptr))
-    {
-        cerr << "destroying database on exit: " << db_path << endl;
-        auto status = db->Close();
-        if (!status.ok())
-        {
-            cerr << status.ToString() << endl;
-        }
-        db.reset();
-        Options options{};
-        auto status2 = DestroyDB(db_path, options);
-        if (!status2.ok())
-        {
-            cerr << status2.ToString() << endl;
-        }
-    }
 }
 
 unique_ptr<TxBridge> transact(shared_ptr<RocksDbBridge> db)
