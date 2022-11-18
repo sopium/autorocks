@@ -18,6 +18,7 @@ libc = "0.2"
 tikv-jemalloc-sys = { version = "0.5", features = ["unprefixed_malloc_on_supported_platforms"], optional = true }
 lz4-sys = { version = "1.9" }
 zstd-sys = { version = "2.0", features = ["zdict_builder"] }
+autocxx = "0.23.1"
 
 [features]
 jemalloc = ["tikv-jemalloc-sys"]
@@ -27,3 +28,4 @@ io-uring = ["pkg-config"]
 cxx-build = "1.0.69"
 pkg-config = { version = "0.3.25", optional = true }
 cc = { version = "1.0", features = ["parallel"] }
+autocxx-build = "0.23.1"

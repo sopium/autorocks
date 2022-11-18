@@ -4,18 +4,24 @@
  * https://github.com/rust-rocksdb/rust-rocksdb/tree/master/librocksdb-sys.
  */
 
+use std::env::var;
 use std::path::{Path, PathBuf};
 use std::{env, fs, process::Command};
-use std::env::var;
 
 fn main() {
     let target = env::var("TARGET").unwrap();
 
-    let mut builder = cxx_build::bridge("src/bridge/mod.rs");
-    builder
-        .files(["bridge/status.cpp", "bridge/db.cpp", "bridge/tx.cpp"])
-        .include(rocksdb_include_dir())
-        .include("bridge");
+    println!("cargo:rerun-if-changed=src/lib.rs");
+    let result = autocxx_build::Builder::new("src/lib.rs", &["src", &rocksdb_include_dir()])
+        .extra_clang_args(&["-std=c++17"])
+        .build();
+    let mut builder = match result {
+        Ok(builder) => builder,
+        Err(e) => {
+            eprintln!("{}", e);
+            std::process::exit(1);
+        }
+    };
     if target.contains("msvc") {
         builder.flag_if_supported("-EHsc");
         builder.flag_if_supported("-std:c++17");
@@ -31,7 +37,7 @@ fn main() {
         builder.flag("-Wno-missing-field-initializers");
         builder.flag("-Wno-strict-aliasing");
         builder.flag("-Wno-invalid-offsetof");
-    };
+    }
 
     #[cfg(feature = "io-uring")]
     if target.contains("linux") {
@@ -66,22 +72,6 @@ fn main() {
     if cfg!(feature = "lib-uring") {
         println!("cargo:rustc-link-lib=static=uring");
     }
-
-    println!("cargo:rerun-if-changed=src/bridge/mod.rs");
-    println!("cargo:rerun-if-changed=bridge/bridge.h");
-    println!("cargo:rerun-if-changed=bridge/common.h");
-    println!("cargo:rerun-if-changed=bridge/db.h");
-    println!("cargo:rerun-if-changed=bridge/db.cpp");
-    println!("cargo:rerun-if-changed=bridge/slice.h");
-    println!("cargo:rerun-if-changed=bridge/status.h");
-    println!("cargo:rerun-if-changed=bridge/status.cpp");
-    println!("cargo:rerun-if-changed=bridge/opts.h");
-    println!("cargo:rerun-if-changed=bridge/iter.h");
-    println!("cargo:rerun-if-changed=bridge/tx.h");
-    println!("cargo:rerun-if-changed=bridge/tx.cpp");
-    println!("cargo:rerun-if-changed=bridge/snapshot.h");
-
-
 
     if !Path::new("rocksdb/AUTHORS").exists() {
         update_submodules();
