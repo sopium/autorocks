@@ -10,7 +10,12 @@ license = "MIT"
 io-uring = ["autorocks-sys/io-uring"]
 
 [dependencies]
+autocxx = "0.23.1"
 autorocks-sys = { path = "autorocks-sys", version = "0.1.0" }
+moveit = "0.5.1"
 
 [workspace]
 members = ["autorocks-sys"]
+
+[dev-dependencies]
+tempfile = "3.3.0"

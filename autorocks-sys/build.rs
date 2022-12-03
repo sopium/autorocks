@@ -12,7 +12,7 @@ fn main() {
     let target = env::var("TARGET").unwrap();
 
     println!("cargo:rerun-if-changed=src/lib.rs");
-    let result = autocxx_build::Builder::new("src/lib.rs", &["src", &rocksdb_include_dir()])
+    let result = autocxx_build::Builder::new("src/lib.rs", ["src", &rocksdb_include_dir()])
         .extra_clang_args(&["-std=c++17"])
         .build();
     let mut builder = match result {

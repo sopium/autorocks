@@ -29,6 +29,15 @@ TransactionDBOptions new_transaction_db_options()
     return TransactionDBOptions();
 }
 
+// Autocxx cannot access fields of non-pod type...
+struct ReadOptionsWrapper : ReadOptions
+{
+    void set_snapshot(const Snapshot *snapshot_)
+    {
+        snapshot = snapshot_;
+    }
+};
+
 struct DbOptionsWrapper
 {
     string path;
@@ -95,6 +104,7 @@ struct DbOptionsWrapper
     }
 };
 
+// Note: make sure TransactionDBWrapper is Unpin.
 struct TransactionDBWrapper
 {
     unique_ptr<TransactionDB> db;
@@ -119,19 +129,33 @@ struct TransactionDBWrapper
         return status;
     }
 
-    Status get(const ReadOptions &options, size_t cf, const Slice &key, PinnableSlice *slice) const
+    ColumnFamilyHandle *get_cf(size_t cf) const
     {
-        return db->Get(options, cf_handles[cf], key, slice);
+        if (cf >= cf_handles.size())
+        {
+            return nullptr;
+        }
+        return cf_handles[cf];
     }
 
-    Status put(const WriteOptions &options, size_t cf, const Slice &key, const Slice &value)
+    Status get(const ReadOptions &options, ColumnFamilyHandle *cf, const Slice &key, PinnableSlice *slice) const
     {
-        return db->Put(options, cf_handles[cf], key, value);
+        return db->Get(options, cf, key, slice);
     }
 
-    unique_ptr<Iterator> iter(const ReadOptions &options) const
+    Status put(const WriteOptions &options, ColumnFamilyHandle *cf, const Slice &key, const Slice &value) const
     {
-        return unique_ptr<Iterator>(db->NewIterator(options));
+        return db->Put(options, cf, key, value);
+    }
+
+    Status del(const WriteOptions &options, ColumnFamilyHandle *cf, const Slice &key) const
+    {
+        return db->Delete(options, cf, key);
+    }
+
+    unique_ptr<Iterator> iter(const ReadOptions &options, ColumnFamilyHandle *cf) const
+    {
+        return unique_ptr<Iterator>(db->NewIterator(options, cf));
     }
 
     DB *as_db() const
@@ -140,28 +164,43 @@ struct TransactionDBWrapper
     }
 };
 
+// Note: make sure TransactionWrapper is Unpin.
 struct TransactionWrapper
 {
     unique_ptr<Transaction> tx;
-    shared_ptr<TransactionDBWrapper> db;
 
-    static TransactionWrapper begin(shared_ptr<TransactionDBWrapper> db, const WriteOptions &write_options, const TransactionOptions &transaction_options)
+    static TransactionWrapper begin(const TransactionDBWrapper *db, const WriteOptions &write_options, const TransactionOptions &transaction_options)
     {
-        return {unique_ptr<Transaction>(db->db->BeginTransaction(write_options, transaction_options)), db};
+        return {unique_ptr<Transaction>(db->db->BeginTransaction(write_options, transaction_options))};
     }
 
-    Status get(const ReadOptions &options, size_t cf, const Slice &key, PinnableSlice *slice) const
+    Status get(const ReadOptions &options, ColumnFamilyHandle *cf, const Slice &key, PinnableSlice *slice) const
     {
-        return tx->Get(options, db->cf_handles[cf], key, slice);
+        return tx->Get(options, cf, key, slice);
     }
 
-    Status put(size_t cf, const Slice &key, const Slice &value)
+    Status put(ColumnFamilyHandle *cf, const Slice &key, const Slice &value) const
     {
-        return tx->Put(db->cf_handles[cf], key, value);
+        return tx->Put(cf, key, value);
     }
 
-    unique_ptr<Iterator> iter(const ReadOptions &options) const
+    Status del(ColumnFamilyHandle *cf, const Slice &key) const
     {
-        return unique_ptr<Iterator>(tx->GetIterator(options));
+        return tx->Delete(cf, key);
+    }
+
+    const Snapshot *snapshot() const
+    {
+        return tx->GetSnapshot();
+    }
+
+    Status commit() const
+    {
+        return tx->Commit();
+    }
+
+    unique_ptr<Iterator> iter(const ReadOptions &options, ColumnFamilyHandle *cf) const
+    {
+        return unique_ptr<Iterator>(tx->GetIterator(options, cf));
     }
 };
