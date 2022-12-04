@@ -1,6 +1,10 @@
-use std::{marker::PhantomData, mem::MaybeUninit, pin::Pin, sync::Arc};
+use std::{
+    marker::PhantomData, mem::MaybeUninit, os::unix::prelude::OsStrExt, path::Path, pin::Pin,
+    sync::Arc,
+};
 
 use autorocks_sys::{
+    new_transaction_db_options,
     rocksdb::{
         PinnableSlice, ReadOptions, TransactionDBOptions, TransactionOptions, WriteOptions, DB,
     },
@@ -10,13 +14,52 @@ use moveit::{moveit, Emplace, New};
 
 use crate::{into_result, slice::as_rust_slice, DbIterator, Result, Snapshot, Transaction};
 
+pub struct DbBuilder {
+    inner: Pin<Box<DbOptionsWrapper>>,
+}
+
+impl DbBuilder {
+    pub fn new(path: &Path, columns: usize) -> Self {
+        Self {
+            inner: Box::emplace(DbOptionsWrapper::new2(
+                path.as_os_str().as_bytes().into(),
+                columns,
+            )),
+        }
+    }
+
+    pub fn load_options_from_file(&mut self, options_file: &Path) -> Result<()> {
+        moveit! {
+            let status = self.inner.as_mut().load(options_file.as_os_str().as_bytes().into());
+        }
+        into_result(&status)
+    }
+
+    pub fn create_if_missing(mut self, val: bool) -> Self {
+        self.inner.as_mut().set_create_if_missing(val);
+        self
+    }
+
+    pub fn create_missing_column_families(mut self, val: bool) -> Self {
+        self.inner.as_mut().set_create_missing_column_families(val);
+        self
+    }
+
+    pub fn build(self) -> Result<TransactionDb> {
+        moveit! {
+            let txn_db_options = new_transaction_db_options();
+        }
+        TransactionDb::open(self.inner, &txn_db_options)
+    }
+}
+
 #[derive(Clone)]
 pub struct TransactionDb {
     inner: Arc<TransactionDBWrapper>,
 }
 
 impl TransactionDb {
-    pub fn open(
+    fn open(
         options: impl autocxx::RValueParam<DbOptionsWrapper>,
         txn_db_options: &TransactionDBOptions,
     ) -> Result<TransactionDb> {

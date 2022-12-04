@@ -69,9 +69,9 @@ struct DbOptionsWrapper
         db_options.create_missing_column_families = val;
     }
 
-    Status load(string options_file)
+    Status load(Slice options_file)
     {
-        return LoadOptionsFromFile(options_file, Env::Default(), &db_options, &cf_descriptors);
+        return LoadOptionsFromFile(options_file.ToString(), Env::Default(), &db_options, &cf_descriptors);
     }
 
     ColumnFamilyOptions *get_cf_option(size_t index)

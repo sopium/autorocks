@@ -3,22 +3,14 @@ use criterion::{criterion_group, criterion_main, Criterion};
 pub fn criterion_benchmark(c: &mut Criterion) {
     #[cfg(feature = "autorocks")]
     c.bench_function("autorocks db get", |b| {
-        use ::std::os::unix::prelude::OsStrExt;
-        use autorocks::{
-            autorocks_sys::{rocksdb::*, *},
-            moveit::moveit,
-            *,
-        };
+        use autorocks::{autorocks_sys::rocksdb::*, moveit::moveit, *};
 
         let dir = tempfile::tempdir().unwrap();
-        let path: Slice = dir.path().as_os_str().as_bytes().into();
-        moveit! {
-            let mut options = DbOptionsWrapper::new2(path, 1);
-            let txn_db_options = new_transaction_db_options();
-        }
-        options.as_mut().set_create_if_missing(true);
-        options.as_mut().set_create_missing_column_families(true);
-        let db = TransactionDb::open(options, &txn_db_options).unwrap();
+        let db = DbBuilder::new(dir.path(), 1)
+            .create_if_missing(true)
+            .create_missing_column_families(true)
+            .build()
+            .unwrap();
         db.put(0, b"key", b"value").unwrap();
         moveit! {
             let mut buf = PinnableSlice::new();
