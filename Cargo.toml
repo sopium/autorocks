@@ -15,7 +15,10 @@ autorocks-sys = { path = "autorocks-sys", version = "0.1.0" }
 moveit = "0.5.1"
 
 [workspace]
-members = ["autorocks-sys"]
+members = ["autorocks-sys", "bench"]
 
 [dev-dependencies]
 tempfile = "3.3.0"
+
+[profile.release]
+lto = true
