@@ -1,9 +1,13 @@
 use std::os::unix::prelude::OsStrExt;
 
-use autorocks_sys::{new_transaction_db_options, rocksdb::Status_Code};
+use autorocks::*;
+use autorocks_sys::{
+    new_transaction_db_options,
+    rocksdb::{PinnableSlice, Slice, Status_Code},
+    DbOptionsWrapper,
+};
+use moveit::moveit;
 use tempfile::tempdir;
-
-use super::*;
 
 fn open_temp(columns: usize) -> TransactionDb {
     let dir = tempdir().unwrap();
@@ -14,8 +18,7 @@ fn open_temp(columns: usize) -> TransactionDb {
     }
     options.as_mut().set_create_if_missing(true);
     options.as_mut().set_create_missing_column_families(true);
-    let db = TransactionDb::open(options, &txn_db_options).unwrap();
-    db
+    TransactionDb::open(options, &txn_db_options).unwrap()
 }
 
 #[test]
