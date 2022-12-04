@@ -10,6 +10,9 @@ pub struct Snapshot {
     pub(crate) db: TransactionDb,
 }
 
+unsafe impl Send for Snapshot {}
+unsafe impl Sync for Snapshot {}
+
 impl Snapshot {
     pub fn get<'b>(
         &self,

@@ -155,7 +155,7 @@ impl TransactionDb {
         }
     }
 
-    /// Begin transaction with default options.
+    /// Begin transaction with default options (but set_snapshot = true).
     pub fn begin_transaction(&self) -> Transaction {
         moveit! {
             let write_options = WriteOptions::new();
