@@ -54,6 +54,11 @@ struct DbOptionsWrapper
     {
     }
 
+    DbOptionsWrapper(Slice path_, size_t columns)
+        : path(path_.ToString()), cf_descriptors(new_column_family_descriptor_vec(columns))
+    {
+    }
+
     void set_create_if_missing(bool val)
     {
         db_options.create_if_missing = val;

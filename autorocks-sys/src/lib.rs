@@ -42,3 +42,12 @@ unsafe impl Send for TransactionDBWrapper {}
 unsafe impl Sync for TransactionDBWrapper {}
 unsafe impl Send for TransactionWrapper {}
 unsafe impl Sync for TransactionWrapper {}
+
+impl From<&[u8]> for rocksdb::Slice {
+    fn from(s: &[u8]) -> rocksdb::Slice {
+        rocksdb::Slice {
+            data_: s.as_ptr() as *const _,
+            size_: s.len(),
+        }
+    }
+}

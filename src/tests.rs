@@ -1,3 +1,5 @@
+use std::os::unix::prelude::OsStrExt;
+
 use autorocks_sys::{new_transaction_db_options, rocksdb::Status_Code};
 use tempfile::tempdir;
 
@@ -5,8 +7,9 @@ use super::*;
 
 fn open_temp(columns: usize) -> TransactionDb {
     let dir = tempdir().unwrap();
+    let path: Slice = dir.path().as_os_str().as_bytes().into();
     moveit! {
-        let mut options = DbOptionsWrapper::new1(dir.path().to_str().unwrap(), columns);
+        let mut options = DbOptionsWrapper::new2(path, columns);
         let txn_db_options = new_transaction_db_options();
     }
     options.as_mut().set_create_if_missing(true);

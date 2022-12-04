@@ -82,12 +82,10 @@ impl TransactionDb {
         key: &[u8],
         value: &[u8],
     ) -> Result<()> {
-        let key = as_rocksdb_slice(key);
-        let value = as_rocksdb_slice(value);
         let cf = self.as_inner().get_cf(col);
         assert!(!cf.is_null());
         moveit! {
-            let status = unsafe { self.as_inner().put(options, cf, &key, &value) };
+            let status = unsafe { self.as_inner().put(options, cf, &key.into(), &value.into()) };
         }
         into_result(&status)
     }
@@ -98,11 +96,10 @@ impl TransactionDb {
         col: usize,
         key: &[u8],
     ) -> Result<()> {
-        let key = as_rocksdb_slice(key);
         let cf = self.as_inner().get_cf(col);
         assert!(!cf.is_null());
         moveit! {
-            let status = unsafe { self.as_inner().del(options, cf, &key) };
+            let status = unsafe { self.as_inner().del(options, cf, &key.into()) };
         }
         into_result(&status)
     }
@@ -134,11 +131,10 @@ impl TransactionDb {
         buf: Pin<&'b mut PinnableSlice>,
     ) -> Result<Option<&'b [u8]>> {
         let slice = unsafe { buf.get_unchecked_mut() };
-        let key = as_rocksdb_slice(key);
         let cf = self.as_inner().get_cf(col);
         assert!(!cf.is_null());
         moveit! {
-            let status = unsafe { self.as_inner().get(options, cf, &key, slice) };
+            let status = unsafe { self.as_inner().get(options, cf, &key.into(), slice) };
         }
         if status.IsNotFound() {
             return Ok(None);
@@ -306,22 +302,19 @@ pub struct Transaction {
 
 impl Transaction {
     pub fn put(&self, col: usize, key: &[u8], value: &[u8]) -> Result<()> {
-        let key = as_rocksdb_slice(key);
-        let value = as_rocksdb_slice(value);
         let cf = self.db.as_inner().get_cf(col);
         assert!(!cf.is_null());
         moveit! {
-            let status = unsafe { self.inner.put(cf, &key, &value) };
+            let status = unsafe { self.inner.put(cf, &key.into(), &value.into()) };
         }
         into_result(&status)
     }
 
     pub fn delete(&self, col: usize, key: &[u8]) -> Result<()> {
-        let key = as_rocksdb_slice(key);
         let cf = self.db.as_inner().get_cf(col);
         assert!(!cf.is_null());
         moveit! {
-            let status = unsafe { self.inner.del(cf, &key) };
+            let status = unsafe { self.inner.del(cf, &key.into()) };
         }
         into_result(&status)
     }
@@ -346,11 +339,10 @@ impl Transaction {
         buf: Pin<&'b mut PinnableSlice>,
     ) -> Result<Option<&'b [u8]>> {
         let slice = unsafe { buf.get_unchecked_mut() };
-        let key = as_rocksdb_slice(key);
         let cf = self.db.as_inner().get_cf(col);
         assert!(!cf.is_null());
         moveit! {
-            let status = unsafe { self.as_inner().get(options, cf, &key, slice) };
+            let status = unsafe { self.as_inner().get(options, cf, &key.into(), slice) };
         }
         if status.IsNotFound() {
             return Ok(None);
@@ -430,13 +422,6 @@ impl<T> core::iter::Iterator for DbIterator<T> {
         } else {
             None
         }
-    }
-}
-
-fn as_rocksdb_slice(s: &[u8]) -> Slice {
-    Slice {
-        data_: s.as_ptr() as *const _,
-        size_: s.len(),
     }
 }
 
