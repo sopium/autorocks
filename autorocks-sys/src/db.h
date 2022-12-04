@@ -109,6 +109,8 @@ struct DbOptionsWrapper
     }
 };
 
+struct TransactionWrapper;
+
 // Note: make sure TransactionDBWrapper is Unpin.
 struct TransactionDBWrapper
 {
@@ -163,6 +165,8 @@ struct TransactionDBWrapper
         return unique_ptr<Iterator>(db->NewIterator(options, cf));
     }
 
+    TransactionWrapper begin(const WriteOptions &write_options, const TransactionOptions &transaction_options) const;
+
     DB *as_db() const
     {
         return &*db;
@@ -173,11 +177,6 @@ struct TransactionDBWrapper
 struct TransactionWrapper
 {
     unique_ptr<Transaction> tx;
-
-    static TransactionWrapper begin(const TransactionDBWrapper *db, const WriteOptions &write_options, const TransactionOptions &transaction_options)
-    {
-        return {unique_ptr<Transaction>(db->db->BeginTransaction(write_options, transaction_options))};
-    }
 
     Status get(const ReadOptions &options, ColumnFamilyHandle *cf, const Slice &key, PinnableSlice *slice) const
     {
@@ -209,3 +208,8 @@ struct TransactionWrapper
         return unique_ptr<Iterator>(tx->GetIterator(options, cf));
     }
 };
+
+inline TransactionWrapper TransactionDBWrapper::begin(const WriteOptions &write_options, const TransactionOptions &transaction_options) const
+{
+    return {unique_ptr<Transaction>(db->BeginTransaction(write_options, transaction_options))};
+}

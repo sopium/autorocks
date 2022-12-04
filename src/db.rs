@@ -155,6 +155,7 @@ impl TransactionDb {
         }
     }
 
+    /// Begin transaction with default options.
     pub fn begin_transaction(&self) -> Transaction {
         moveit! {
             let write_options = WriteOptions::new();
@@ -171,7 +172,8 @@ impl TransactionDb {
     ) -> Transaction {
         let mut tx: MaybeUninit<TransactionWrapper> = MaybeUninit::uninit();
         unsafe {
-            TransactionWrapper::begin(self.as_inner(), write_options, transaction_options)
+            self.as_inner()
+                .begin(write_options, transaction_options)
                 .new(Pin::new(&mut tx))
         };
         Transaction {
