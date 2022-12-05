@@ -84,3 +84,18 @@ fn test_iter() {
     assert_eq!(db.iter(0).count(), 2);
     assert_eq!(tx.iter(0).count(), 2);
 }
+
+#[test]
+fn test_write_batch() {
+    let db = open_temp(1);
+    db.put(0, b"key", b"value").unwrap();
+    let mut wb = db.new_write_batch();
+    wb.put(0, b"key1", b"value1").unwrap();
+    wb.delete(0, b"key").unwrap();
+    db.write(&mut wb).unwrap();
+    moveit! {
+        let mut buf = PinnableSlice::new();
+    }
+    assert!(db.get(0, b"key", buf.as_mut()).unwrap().is_none());
+    assert!(db.get(0, b"key1", buf.as_mut()).unwrap().is_some());
+}

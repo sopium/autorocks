@@ -48,7 +48,7 @@ impl Snapshot {
 impl Drop for Snapshot {
     fn drop(&mut self) {
         unsafe {
-            self.db.as_mut_db().ReleaseSnapshot(self.inner);
+            self.db.as_inner().release_snapshot(self.inner);
         }
     }
 }
@@ -57,6 +57,9 @@ pub struct SnapshotRef<'a> {
     pub(crate) inner: &'a autorocks_sys::rocksdb::Snapshot,
     pub(crate) tx: &'a Transaction,
 }
+
+unsafe impl Send for SnapshotRef<'_> {}
+unsafe impl Sync for SnapshotRef<'_> {}
 
 impl<'a> SnapshotRef<'a> {
     pub fn get<'b>(

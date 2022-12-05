@@ -29,6 +29,11 @@ TransactionDBOptions new_transaction_db_options()
     return TransactionDBOptions();
 }
 
+unique_ptr<WriteBatch> new_write_batch()
+{
+    return make_unique<WriteBatch>();
+}
+
 // Autocxx cannot access fields of non-pod type...
 struct ReadOptionsWrapper : ReadOptions
 {
@@ -167,9 +172,19 @@ struct TransactionDBWrapper
 
     TransactionWrapper begin(const WriteOptions &write_options, const TransactionOptions &transaction_options) const;
 
-    DB *as_db() const
+    Status write(const WriteOptions &wopts, WriteBatch *updates) const
     {
-        return &*db;
+        return db->Write(wopts, updates);
+    }
+
+    const Snapshot *get_snapshot() const
+    {
+        return db->GetSnapshot();
+    }
+
+    void release_snapshot(const Snapshot *snapshot) const
+    {
+        db->ReleaseSnapshot(snapshot);
     }
 };
 

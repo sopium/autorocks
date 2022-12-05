@@ -4,15 +4,15 @@ use std::{
 };
 
 use autorocks_sys::{
-    new_transaction_db_options,
-    rocksdb::{
-        PinnableSlice, ReadOptions, TransactionDBOptions, TransactionOptions, WriteOptions, DB,
-    },
+    new_transaction_db_options, new_write_batch,
+    rocksdb::{PinnableSlice, ReadOptions, TransactionDBOptions, TransactionOptions, WriteOptions},
     DbOptionsWrapper, TransactionDBWrapper, TransactionWrapper,
 };
 use moveit::{moveit, Emplace, New};
 
-use crate::{into_result, slice::as_rust_slice, DbIterator, Result, Snapshot, Transaction};
+use crate::{
+    into_result, slice::as_rust_slice, DbIterator, Result, Snapshot, Transaction, WriteBatch,
+};
 
 pub struct DbBuilder {
     inner: Pin<Box<DbOptionsWrapper>>,
@@ -87,10 +87,10 @@ impl TransactionDb {
         key: &[u8],
         value: &[u8],
     ) -> Result<()> {
-        let cf = self.as_inner().get_cf(col);
+        let cf = self.inner.get_cf(col);
         assert!(!cf.is_null());
         moveit! {
-            let status = unsafe { self.as_inner().put(options, cf, &key.into(), &value.into()) };
+            let status = unsafe { self.inner.put(options, cf, &key.into(), &value.into()) };
         }
         into_result(&status)
     }
@@ -101,10 +101,10 @@ impl TransactionDb {
         col: usize,
         key: &[u8],
     ) -> Result<()> {
-        let cf = self.as_inner().get_cf(col);
+        let cf = self.inner.get_cf(col);
         assert!(!cf.is_null());
         moveit! {
-            let status = unsafe { self.as_inner().del(options, cf, &key.into()) };
+            let status = unsafe { self.inner.del(options, cf, &key.into()) };
         }
         into_result(&status)
     }
@@ -136,10 +136,10 @@ impl TransactionDb {
         buf: Pin<&'b mut PinnableSlice>,
     ) -> Result<Option<&'b [u8]>> {
         let slice = unsafe { buf.get_unchecked_mut() };
-        let cf = self.as_inner().get_cf(col);
+        let cf = self.inner.get_cf(col);
         assert!(!cf.is_null());
         moveit! {
-            let status = unsafe { self.as_inner().get(options, cf, &key.into(), slice) };
+            let status = unsafe { self.inner.get(options, cf, &key.into(), slice) };
         }
         if status.IsNotFound() {
             return Ok(None);
@@ -150,7 +150,7 @@ impl TransactionDb {
 
     pub fn snapshot(&self) -> Snapshot {
         Snapshot {
-            inner: unsafe { self.as_mut_db().GetSnapshot() },
+            inner: self.inner.get_snapshot(),
             db: self.clone(),
         }
     }
@@ -172,7 +172,7 @@ impl TransactionDb {
     ) -> Transaction {
         let mut tx: MaybeUninit<TransactionWrapper> = MaybeUninit::uninit();
         unsafe {
-            self.as_inner()
+            self.inner
                 .begin(write_options, transaction_options)
                 .new(Pin::new(&mut tx))
         };
@@ -194,9 +194,9 @@ impl TransactionDb {
         options: &ReadOptions,
         col: usize,
     ) -> DbIterator<&'a Self> {
-        let cf = self.as_inner().get_cf(col);
+        let cf = self.inner.get_cf(col);
         assert!(!cf.is_null());
-        let mut iter = unsafe { self.as_inner().iter(options, cf) };
+        let mut iter = unsafe { self.inner.iter(options, cf) };
         iter.as_mut().unwrap().SeekToFirst();
         DbIterator {
             inner: iter,
@@ -205,11 +205,34 @@ impl TransactionDb {
         }
     }
 
-    pub fn as_inner(&self) -> &TransactionDBWrapper {
-        &self.inner
+    pub fn new_write_batch(&self) -> WriteBatch {
+        WriteBatch {
+            inner: new_write_batch(),
+            db: self.clone(),
+        }
     }
 
-    pub(crate) unsafe fn as_mut_db(&self) -> Pin<&mut DB> {
-        unsafe { Pin::new_unchecked(&mut *self.as_inner().as_db()) }
+    pub fn write_with_options(
+        &self,
+        options: &WriteOptions,
+        updates: &mut WriteBatch,
+    ) -> Result<()> {
+        moveit! {
+            let status = unsafe {
+                self.inner.write(options, updates.as_inner_mut().get_unchecked_mut())
+            };
+        }
+        into_result(&status)
+    }
+
+    pub fn write(&self, updates: &mut WriteBatch) -> Result<()> {
+        moveit! {
+            let options = WriteOptions::new();
+        }
+        self.write_with_options(&options, updates)
+    }
+
+    pub fn as_inner(&self) -> &TransactionDBWrapper {
+        &self.inner
     }
 }

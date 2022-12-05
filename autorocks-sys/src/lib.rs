@@ -12,6 +12,7 @@ autocxx::include_cpp! {
     generate_pod!("rocksdb::WriteOptions")
     generate_pod!("rocksdb::TransactionOptions")
     generate!("rocksdb::DB")
+    generate!("rocksdb::WriteBatch")
     generate!("rocksdb::Iterator")
     generate_pod!("rocksdb::Slice")
     generate!("rocksdb::PinnableSlice")
@@ -26,6 +27,7 @@ autocxx::include_cpp! {
     // generate!("rocksdb::Transaction")
 
     generate!("new_transaction_db_options")
+    generate!("new_write_batch")
     generate!("ReadOptionsWrapper")
     generate!("DbOptionsWrapper")
     generate!("TransactionDBWrapper")
@@ -37,11 +39,12 @@ pub use ffi::*;
 impl Unpin for TransactionDBWrapper {}
 impl Unpin for TransactionWrapper {}
 
-// RocksDB is thread safe.
+// Thread safe.
 unsafe impl Send for TransactionDBWrapper {}
 unsafe impl Sync for TransactionDBWrapper {}
+
 unsafe impl Send for TransactionWrapper {}
-unsafe impl Sync for TransactionWrapper {}
+unsafe impl Send for rocksdb::WriteBatch {}
 
 impl From<&[u8]> for rocksdb::Slice {
     fn from(s: &[u8]) -> rocksdb::Slice {
