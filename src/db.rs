@@ -9,7 +9,7 @@ use autorocks_sys::{
         CompressionType, PinnableSlice, ReadOptions, TransactionDBOptions, TransactionOptions,
         WriteOptions,
     },
-    DbOptionsWrapper, TransactionDBWrapper, TransactionWrapper,
+    DbOptionsWrapper, ReadOnlyDbWrapper, TransactionDBWrapper, TransactionWrapper,
 };
 use moveit::{moveit, Emplace, New};
 
@@ -60,6 +60,10 @@ impl DbOptions {
             let status = self.inner.repair();
         }
         into_result(&status)
+    }
+
+    pub fn open_read_only(&self) -> Result<ReadOnlyDb> {
+        ReadOnlyDb::open(&self.inner)
     }
 
     pub fn open(&self) -> Result<TransactionDb> {
@@ -250,6 +254,83 @@ impl TransactionDb {
     }
 
     pub fn as_inner(&self) -> &TransactionDBWrapper {
+        &self.inner
+    }
+}
+
+#[derive(Clone)]
+pub struct ReadOnlyDb {
+    inner: Arc<ReadOnlyDbWrapper>,
+}
+
+impl ReadOnlyDb {
+    fn open(options: &DbOptionsWrapper) -> Result<ReadOnlyDb> {
+        let db = Arc::emplace(ReadOnlyDbWrapper::new());
+        let mut db = Pin::into_inner(db);
+        let db_mut = Arc::get_mut(&mut db).unwrap();
+        moveit! {
+            let status = Pin::new(db_mut).open(options);
+        }
+        into_result(&status)?;
+        Ok(ReadOnlyDb { inner: db })
+    }
+
+    pub fn get<'b>(
+        &self,
+        col: usize,
+        key: &[u8],
+        buf: Pin<&'b mut PinnableSlice>,
+    ) -> Result<Option<&'b [u8]>> {
+        moveit! {
+            let options = ReadOptions::new();
+        }
+        self.get_with_options(&options, col, key, buf)
+    }
+
+    pub fn get_with_options<'b>(
+        &self,
+        options: &ReadOptions,
+        col: usize,
+        key: &[u8],
+        buf: Pin<&'b mut PinnableSlice>,
+    ) -> Result<Option<&'b [u8]>> {
+        let slice = unsafe { buf.get_unchecked_mut() };
+        let cf = self.inner.get_cf(col);
+        assert!(!cf.is_null());
+        moveit! {
+            let status = unsafe { self.inner.get(options, cf, &key.into(), slice) };
+        }
+        if status.IsNotFound() {
+            return Ok(None);
+        }
+        into_result(&status)?;
+        Ok(Some(as_rust_slice(slice)))
+    }
+
+    pub fn iter(&self, col: usize) -> DbIterator<&'_ Self> {
+        moveit! {
+            let options = ReadOptions::new();
+        }
+        self.iter_with_options(&options, col)
+    }
+
+    pub fn iter_with_options<'a>(
+        &'a self,
+        options: &ReadOptions,
+        col: usize,
+    ) -> DbIterator<&'a Self> {
+        let cf = self.inner.get_cf(col);
+        assert!(!cf.is_null());
+        let mut iter = unsafe { self.inner.iter(options, cf) };
+        iter.as_mut().unwrap().SeekToFirst();
+        DbIterator {
+            inner: iter,
+            just_seeked: true,
+            phantom: PhantomData,
+        }
+    }
+
+    pub fn as_inner(&self) -> &ReadOnlyDbWrapper {
         &self.inner
     }
 }

@@ -26,6 +26,26 @@ fn test_db_open_put_get_delete() {
     assert!(v.is_none());
 }
 
+#[test]
+fn test_read_only_db() {
+    let dir = tempdir().unwrap();
+
+    let db = DbOptions::new(dir.path(), 5)
+        .create_if_missing(true)
+        .create_missing_column_families(true)
+        .open()
+        .unwrap();
+    db.put(0, b"key", b"value").unwrap();
+    drop(db);
+
+    let rdb = DbOptions::new(dir.path(), 1).open_read_only().unwrap();
+    moveit! {
+        let mut slice = PinnableSlice::new();
+    }
+    let v = rdb.get(0, b"key", slice.as_mut()).unwrap();
+    assert_eq!(v.unwrap(), b"value");
+}
+
 #[cfg(feature = "snappy")]
 #[test]
 fn test_db_open_snappy() {

@@ -208,6 +208,49 @@ struct TransactionDBWrapper
     }
 };
 
+// Note: make sure ReadOnlyDbWrapper is Unpin.
+struct ReadOnlyDbWrapper
+{
+    unique_ptr<DB> db;
+    std::vector<ColumnFamilyHandle *> cf_handles;
+
+    Status open(
+        const DbOptionsWrapper &options)
+    {
+        DB *ptr;
+        Status status = DB::OpenForReadOnly(
+            options.db_options,
+            options.path,
+            options.cf_descriptors,
+            &cf_handles,
+            &ptr);
+        if (status.ok())
+        {
+            db.reset(ptr);
+        }
+        return status;
+    }
+
+    ColumnFamilyHandle *get_cf(size_t cf) const
+    {
+        if (cf >= cf_handles.size())
+        {
+            return nullptr;
+        }
+        return cf_handles[cf];
+    }
+
+    Status get(const ReadOptions &options, ColumnFamilyHandle *cf, const Slice &key, PinnableSlice *slice) const
+    {
+        return db->Get(options, cf, key, slice);
+    }
+
+    unique_ptr<Iterator> iter(const ReadOptions &options, ColumnFamilyHandle *cf) const
+    {
+        return unique_ptr<Iterator>(db->NewIterator(options, cf));
+    }
+};
+
 // Note: make sure TransactionWrapper is Unpin.
 struct TransactionWrapper
 {

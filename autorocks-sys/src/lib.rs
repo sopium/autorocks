@@ -31,17 +31,21 @@ autocxx::include_cpp! {
     generate!("ReadOptionsWrapper")
     generate!("DbOptionsWrapper")
     generate!("TransactionDBWrapper")
+    generate!("ReadOnlyDbWrapper")
     generate!("TransactionWrapper")
 }
 
 pub use ffi::*;
 
 impl Unpin for TransactionDBWrapper {}
+impl Unpin for ReadOnlyDbWrapper {}
 impl Unpin for TransactionWrapper {}
 
 // Thread safe.
 unsafe impl Send for TransactionDBWrapper {}
 unsafe impl Sync for TransactionDBWrapper {}
+unsafe impl Send for ReadOnlyDbWrapper {}
+unsafe impl Sync for ReadOnlyDbWrapper {}
 
 unsafe impl Send for TransactionWrapper {}
 unsafe impl Send for rocksdb::WriteBatch {}
