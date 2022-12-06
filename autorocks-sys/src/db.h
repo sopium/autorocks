@@ -74,9 +74,24 @@ struct DbOptionsWrapper
         db_options.create_missing_column_families = val;
     }
 
+    void set_compression(CompressionType comp)
+    {
+        for (ColumnFamilyDescriptor &x : cf_descriptors)
+        {
+            x.options.compression = comp;
+        }
+    }
+
     Status load(Slice options_file)
     {
-        return LoadOptionsFromFile(options_file.ToString(), Env::Default(), &db_options, &cf_descriptors);
+        auto columns = cf_descriptors.size();
+        auto status = LoadOptionsFromFile(options_file.ToString(), Env::Default(), &db_options, &cf_descriptors);
+        if (!status.ok())
+        {
+            return status;
+        }
+        sort_and_complete_missing(columns);
+        return status;
     }
 
     ColumnFamilyOptions *get_cf_option(size_t index)
@@ -84,7 +99,7 @@ struct DbOptionsWrapper
         return &cf_descriptors[index].options;
     }
 
-    /// Sort and complete missing column families.
+private:
     void sort_and_complete_missing(size_t columns)
     {
         unordered_map<string, ColumnFamilyDescriptor> cf_map;

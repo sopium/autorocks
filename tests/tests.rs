@@ -1,5 +1,5 @@
 use autorocks::*;
-use autorocks_sys::rocksdb::{PinnableSlice, Status_Code};
+use autorocks_sys::rocksdb::{CompressionType, PinnableSlice, Status_Code};
 use moveit::moveit;
 use tempfile::tempdir;
 
@@ -24,6 +24,19 @@ fn test_db_open_put_get_delete() {
     db.delete(0, b"key").unwrap();
     let v = db.get(0, b"key", slice.as_mut()).unwrap();
     assert!(v.is_none());
+}
+
+#[cfg(feature = "snappy")]
+#[test]
+fn test_db_open_snappy() {
+    let dir = tempdir().unwrap();
+    let db = DbBuilder::new(dir.path(), 1)
+        .create_if_missing(true)
+        .create_missing_column_families(true)
+        .compression(CompressionType::kSnappyCompression)
+        .build()
+        .unwrap();
+    db.put(0, b"key", b"value").unwrap();
 }
 
 #[test]

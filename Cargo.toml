@@ -7,11 +7,15 @@ authors = ["Godwoken"]
 license = "MIT"
 
 [features]
+default = ["snappy"]
+snappy = ["autorocks-sys/snappy"]
 io-uring = ["autorocks-sys/io-uring"]
+zstd = ["autorocks-sys/zstd"]
+lz4 = ["autorocks-sys/lz4"]
 
 [dependencies]
 autocxx = "0.23.1"
-autorocks-sys = { path = "autorocks-sys", version = "0.1.0" }
+autorocks-sys = { path = "autorocks-sys", version = "0.1.0", default-features = false }
 moveit = "0.5.1"
 
 [workspace]

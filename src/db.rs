@@ -5,7 +5,10 @@ use std::{
 
 use autorocks_sys::{
     new_transaction_db_options, new_write_batch,
-    rocksdb::{PinnableSlice, ReadOptions, TransactionDBOptions, TransactionOptions, WriteOptions},
+    rocksdb::{
+        CompressionType, PinnableSlice, ReadOptions, TransactionDBOptions, TransactionOptions,
+        WriteOptions,
+    },
     DbOptionsWrapper, TransactionDBWrapper, TransactionWrapper,
 };
 use moveit::{moveit, Emplace, New};
@@ -28,6 +31,7 @@ impl DbBuilder {
         }
     }
 
+    /// Note that this resets all options and column families.
     pub fn load_options_from_file(&mut self, options_file: &Path) -> Result<()> {
         moveit! {
             let status = self.inner.as_mut().load(options_file.as_os_str().as_bytes().into());
@@ -42,6 +46,12 @@ impl DbBuilder {
 
     pub fn create_missing_column_families(mut self, val: bool) -> Self {
         self.inner.as_mut().set_create_missing_column_families(val);
+        self
+    }
+
+    /// The corresponding feature must be enabled for this to actually work.
+    pub fn compression(mut self, c: CompressionType) -> Self {
+        self.inner.as_mut().set_compression(c);
         self
     }
 

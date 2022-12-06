@@ -5,7 +5,7 @@
  */
 
 use std::env::var;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::{env, fs, process::Command};
 
 fn main() {
@@ -67,8 +67,12 @@ fn main() {
 
     builder.compile("cozorocks");
     println!("cargo:rustc-link-lib=static=rocksdb");
-    println!("cargo:rustc-link-lib=static=zstd");
-    println!("cargo:rustc-link-lib=static=lz4");
+    if cfg!(feature = "zstd") {
+        println!("cargo:rustc-link-lib=static=zstd");
+    }
+    if cfg!(feature = "lz4") {
+        println!("cargo:rustc-link-lib=static=lz4");
+    }
     if cfg!(feature = "lib-uring") {
         println!("cargo:rustc-link-lib=static=uring");
     }
@@ -132,13 +136,6 @@ fn rocksdb_include_dir() -> String {
 }
 
 fn build_rocksdb() {
-    let base = env::var_os("OUT_DIR").unwrap();
-    let mut out_lib_path = PathBuf::from(base);
-    out_lib_path.push("librocksdb.a");
-    if out_lib_path.exists() {
-        return;
-    }
-
     let target = env::var("TARGET").unwrap();
 
     let mut config = cc::Build::new();
@@ -146,14 +143,26 @@ fn build_rocksdb() {
     config.include("rocksdb/");
     config.include("rocksdb/third-party/gtest-1.8.1/fused-src/");
 
-    config.define("LZ4", Some("1"));
-    if let Some(path) = env::var_os("DEP_LZ4_INCLUDE") {
-        config.include(path);
+    if cfg!(feature = "snappy") {
+        pkg_config::Config::new()
+            .statik(true)
+            .probe("snappy")
+            .expect("the snappy features is enabled but pkg-config cannot find the library");
+        config.define("SNAPPY", Some("1"));
     }
 
-    config.define("ZSTD", Some("1"));
-    if let Some(path) = env::var_os("DEP_ZSTD_INCLUDE") {
-        config.include(path);
+    if cfg!(feature = "lz4") {
+        config.define("LZ4", Some("1"));
+        if let Some(path) = env::var_os("DEP_LZ4_INCLUDE") {
+            config.include(path);
+        }
+    }
+
+    if cfg!(feature = "zstd") {
+        config.define("ZSTD", Some("1"));
+        if let Some(path) = env::var_os("DEP_ZSTD_INCLUDE") {
+            config.include(path);
+        }
     }
 
     config.include(".");
