@@ -99,6 +99,11 @@ struct DbOptionsWrapper
         return &cf_descriptors[index].options;
     }
 
+    Status repair() const
+    {
+        return RepairDB(path, db_options, cf_descriptors);
+    }
+
 private:
     void sort_and_complete_missing(size_t columns)
     {
@@ -138,7 +143,7 @@ struct TransactionDBWrapper
     std::vector<ColumnFamilyHandle *> cf_handles;
 
     Status open(
-        DbOptionsWrapper &&options,
+        const DbOptionsWrapper &options,
         const TransactionDBOptions &transaction_db_options)
     {
         TransactionDB *ptr;

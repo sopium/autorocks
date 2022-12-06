@@ -17,11 +17,11 @@ use crate::{
     into_result, slice::as_rust_slice, DbIterator, Result, Snapshot, Transaction, WriteBatch,
 };
 
-pub struct DbBuilder {
+pub struct DbOptions {
     inner: Pin<Box<DbOptionsWrapper>>,
 }
 
-impl DbBuilder {
+impl DbOptions {
     pub fn new(path: &Path, columns: usize) -> Self {
         Self {
             inner: Box::emplace(DbOptionsWrapper::new2(
@@ -39,27 +39,34 @@ impl DbBuilder {
         into_result(&status)
     }
 
-    pub fn create_if_missing(mut self, val: bool) -> Self {
+    pub fn create_if_missing(&mut self, val: bool) -> &mut Self {
         self.inner.as_mut().set_create_if_missing(val);
         self
     }
 
-    pub fn create_missing_column_families(mut self, val: bool) -> Self {
+    pub fn create_missing_column_families(&mut self, val: bool) -> &mut Self {
         self.inner.as_mut().set_create_missing_column_families(val);
         self
     }
 
     /// The corresponding feature must be enabled for this to actually work.
-    pub fn compression(mut self, c: CompressionType) -> Self {
+    pub fn compression(&mut self, c: CompressionType) -> &mut Self {
         self.inner.as_mut().set_compression(c);
         self
     }
 
-    pub fn build(self) -> Result<TransactionDb> {
+    pub fn repair(&self) -> Result<()> {
+        moveit! {
+            let status = self.inner.repair();
+        }
+        into_result(&status)
+    }
+
+    pub fn open(&self) -> Result<TransactionDb> {
         moveit! {
             let txn_db_options = new_transaction_db_options();
         }
-        TransactionDb::open(self.inner, &txn_db_options)
+        TransactionDb::open(&self.inner, &txn_db_options)
     }
 }
 
@@ -70,7 +77,7 @@ pub struct TransactionDb {
 
 impl TransactionDb {
     fn open(
-        options: impl autocxx::RValueParam<DbOptionsWrapper>,
+        options: &DbOptionsWrapper,
         txn_db_options: &TransactionDBOptions,
     ) -> Result<TransactionDb> {
         let db = Arc::emplace(TransactionDBWrapper::new());

@@ -5,10 +5,10 @@ use tempfile::tempdir;
 
 fn open_temp(columns: usize) -> TransactionDb {
     let dir = tempdir().unwrap();
-    DbBuilder::new(dir.path(), columns)
+    DbOptions::new(dir.path(), columns)
         .create_if_missing(true)
         .create_missing_column_families(true)
-        .build()
+        .open()
         .unwrap()
 }
 
@@ -30,11 +30,11 @@ fn test_db_open_put_get_delete() {
 #[test]
 fn test_db_open_snappy() {
     let dir = tempdir().unwrap();
-    let db = DbBuilder::new(dir.path(), 1)
+    let db = DbOptions::new(dir.path(), 1)
         .create_if_missing(true)
         .create_missing_column_families(true)
         .compression(CompressionType::kSnappyCompression)
-        .build()
+        .open()
         .unwrap();
     db.put(0, b"key", b"value").unwrap();
 }

@@ -6,10 +6,10 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         use autorocks::{autorocks_sys::rocksdb::*, moveit::moveit, *};
 
         let dir = tempfile::tempdir().unwrap();
-        let db = DbBuilder::new(dir.path(), 1)
+        let db = DbOptions::new(dir.path(), 1)
             .create_if_missing(true)
             .create_missing_column_families(true)
-            .build()
+            .open()
             .unwrap();
         db.put(0, b"key", b"value").unwrap();
         moveit! {
