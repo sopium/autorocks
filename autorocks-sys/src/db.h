@@ -170,6 +170,28 @@ struct TransactionDBWrapper
         return cf_handles[cf];
     }
 
+    size_t default_col() const
+    {
+        return cf_handles.size() - 1;
+    }
+
+    Status drop_cf(size_t col)
+    {
+        auto cf = get_cf(col);
+        if (!cf)
+        {
+            return Status::OK();
+        }
+
+        Status status = db->DropColumnFamily(cf);
+        if (!status.ok())
+        {
+            return status;
+        }
+        cf_handles[col] = nullptr;
+        return status;
+    }
+
     Status get(const ReadOptions &options, ColumnFamilyHandle *cf, const Slice &key, PinnableSlice *slice) const
     {
         return db->Get(options, cf, key, slice);
@@ -238,6 +260,11 @@ struct ReadOnlyDbWrapper
             return nullptr;
         }
         return cf_handles[cf];
+    }
+
+    size_t default_col() const
+    {
+        return cf_handles.size() - 1;
     }
 
     Status get(const ReadOptions &options, ColumnFamilyHandle *cf, const Slice &key, PinnableSlice *slice) const

@@ -13,17 +13,25 @@ fn open_temp(columns: usize) -> TransactionDb {
 }
 
 #[test]
-fn test_db_open_put_get_delete() {
-    let db = open_temp(1);
+fn test_db_open_put_get_delete_drop_cf() {
+    let mut db = open_temp(1);
     db.put(0, b"key", b"value").unwrap();
+    assert_eq!(db.default_col(), 1);
+    db.put(db.default_col(), b"default", b"default").unwrap();
     moveit! {
         let mut slice = PinnableSlice::new();
     }
     let v = db.get(0, b"key", slice.as_mut()).unwrap();
     assert_eq!(v.unwrap(), b"value");
+    let v = db
+        .get(db.default_col(), b"default", slice.as_mut())
+        .unwrap();
+    assert_eq!(v.unwrap(), b"default");
     db.delete(0, b"key").unwrap();
     let v = db.get(0, b"key", slice.as_mut()).unwrap();
     assert!(v.is_none());
+
+    db.drop_cf(0).unwrap();
 }
 
 #[test]

@@ -11,8 +11,8 @@ use autorocks_sys::{
 use moveit::{moveit, Emplace, New};
 
 use crate::{
-    into_result, slice::as_rust_slice, DbIterator, Direction, Result, Snapshot, Transaction,
-    WriteBatch,
+    into_result, slice::as_rust_slice, DbIterator, Direction, Result, RocksDBStatusError, Snapshot,
+    Transaction, WriteBatch,
 };
 
 pub struct DbOptions {
@@ -97,6 +97,22 @@ impl TransactionDb {
             let options = WriteOptions::new();
         }
         self.put_with_options(&options, col, key, value)
+    }
+
+    pub fn default_col(&self) -> usize {
+        self.inner.default_col()
+    }
+
+    /// This only works when self is the sole instance of the db.
+    pub fn drop_cf(&mut self, col: usize) -> Result<()> {
+        let inner = Arc::get_mut(&mut self.inner).ok_or_else(|| RocksDBStatusError {
+            msg: "Arc::get_mut failed".into(),
+            code: autorocks_sys::rocksdb::Status_Code::kBusy,
+        })?;
+        moveit! {
+            let status = Pin::new(inner).drop_cf(col);
+        }
+        into_result(&status)
     }
 
     pub fn put_with_options(
@@ -267,6 +283,10 @@ impl ReadOnlyDb {
         }
         into_result(&status)?;
         Ok(ReadOnlyDb { inner: db })
+    }
+
+    pub fn default_col(&self) -> usize {
+        self.inner.default_col()
     }
 
     pub fn get<'b>(

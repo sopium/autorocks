@@ -3,7 +3,7 @@ use std::fmt;
 use autorocks_sys::rocksdb::{Status, Status_Code};
 
 pub struct RocksDBStatusError {
-    msg: String,
+    pub(crate) msg: String,
     pub code: Status_Code,
 }
 
