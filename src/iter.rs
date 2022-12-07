@@ -1,4 +1,4 @@
-use std::marker::PhantomData;
+use std::{hint::unreachable_unchecked, marker::PhantomData};
 
 use autocxx::prelude::UniquePtr;
 use autorocks_sys::rocksdb::Iterator;
@@ -45,14 +45,20 @@ impl<T> DbIterator<T> {
         self.inner.as_ref().unwrap().Valid()
     }
 
-    pub fn key(&self) -> &[u8] {
-        debug_assert!(self.valid());
-        unsafe { as_rust_slice1(self.inner.as_ref().unwrap().key()) }
+    pub fn key(&self) -> Option<&[u8]> {
+        if self.valid() {
+            Some(unsafe { as_rust_slice1(self.inner.as_ref().unwrap().key()) })
+        } else {
+            None
+        }
     }
 
-    pub fn value(&self) -> &[u8] {
-        debug_assert!(self.valid());
-        unsafe { as_rust_slice1(self.inner.as_ref().unwrap().value()) }
+    pub fn value(&self) -> Option<&[u8]> {
+        if self.valid() {
+            Some(unsafe { as_rust_slice1(self.inner.as_ref().unwrap().value()) })
+        } else {
+            None
+        }
     }
 }
 
@@ -70,10 +76,20 @@ impl<T> core::iter::Iterator for DbIterator<T> {
             self.just_seeked = false;
         }
         if inner.Valid() {
-            let v = (self.key().into(), self.value().into());
+            let v = (
+                unsafe { unwrap_unchecked(self.key()) }.into(),
+                unsafe { unwrap_unchecked(self.value()) }.into(),
+            );
             Some(v)
         } else {
             None
         }
+    }
+}
+
+unsafe fn unwrap_unchecked<T>(x: Option<T>) -> T {
+    match x {
+        Some(x) => x,
+        None => unreachable_unchecked(),
     }
 }
