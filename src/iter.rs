@@ -1,4 +1,4 @@
-use std::{hint::unreachable_unchecked, marker::PhantomData};
+use std::{hint::unreachable_unchecked, marker::PhantomData, pin::Pin};
 
 use autocxx::prelude::UniquePtr;
 use autorocks_sys::rocksdb::Iterator;
@@ -18,10 +18,12 @@ pub struct DbIterator<T> {
 }
 
 impl<T> DbIterator<T> {
-    pub(crate) fn new(mut inner: UniquePtr<Iterator>, direction: Direction) -> Self {
+    /// Safety: inner must NOT be null.
+    pub(crate) unsafe fn new(mut inner: UniquePtr<Iterator>, direction: Direction) -> Self {
+        let ptr = unsafe { unwrap_unchecked(inner.as_mut()) };
         match direction {
-            Direction::Forward => inner.as_mut().unwrap().SeekToFirst(),
-            Direction::Backward => inner.as_mut().unwrap().SeekToLast(),
+            Direction::Forward => ptr.SeekToFirst(),
+            Direction::Backward => ptr.SeekToLast(),
         }
         Self {
             inner,
@@ -31,23 +33,31 @@ impl<T> DbIterator<T> {
         }
     }
 
+    pub fn as_inner(&self) -> &Iterator {
+        unsafe { unwrap_unchecked(self.inner.as_ref()) }
+    }
+
+    pub fn as_inner_mut(&mut self) -> Pin<&mut Iterator> {
+        unsafe { unwrap_unchecked(self.inner.as_mut()) }
+    }
+
     pub fn seek(&mut self, key: &[u8]) {
-        self.inner.as_mut().unwrap().Seek(&key.into());
+        self.as_inner_mut().Seek(&key.into());
         self.just_seeked = true;
     }
 
     pub fn seek_for_prev(&mut self, key: &[u8]) {
-        self.inner.as_mut().unwrap().SeekForPrev(&key.into());
+        self.as_inner_mut().SeekForPrev(&key.into());
         self.just_seeked = true;
     }
 
     pub fn valid(&self) -> bool {
-        self.inner.as_ref().unwrap().Valid()
+        self.as_inner().Valid()
     }
 
     pub fn key(&self) -> Option<&[u8]> {
         if self.valid() {
-            Some(unsafe { as_rust_slice1(self.inner.as_ref().unwrap().key()) })
+            Some(unsafe { as_rust_slice1(self.as_inner().key()) })
         } else {
             None
         }
@@ -55,7 +65,7 @@ impl<T> DbIterator<T> {
 
     pub fn value(&self) -> Option<&[u8]> {
         if self.valid() {
-            Some(unsafe { as_rust_slice1(self.inner.as_ref().unwrap().value()) })
+            Some(unsafe { as_rust_slice1(self.as_inner().value()) })
         } else {
             None
         }
@@ -66,16 +76,15 @@ impl<T> core::iter::Iterator for DbIterator<T> {
     type Item = (Box<[u8]>, Box<[u8]>);
 
     fn next(&mut self) -> Option<Self::Item> {
-        let mut inner = self.inner.as_mut().unwrap();
         if !self.just_seeked {
             match self.direction {
-                Direction::Backward => inner.as_mut().Prev(),
-                Direction::Forward => inner.as_mut().Next(),
+                Direction::Backward => self.as_inner_mut().Prev(),
+                Direction::Forward => self.as_inner_mut().Next(),
             }
         } else {
             self.just_seeked = false;
         }
-        if inner.Valid() {
+        if self.as_inner().Valid() {
             let v = (
                 unsafe { unwrap_unchecked(self.key()) }.into(),
                 unsafe { unwrap_unchecked(self.value()) }.into(),

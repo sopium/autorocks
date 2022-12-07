@@ -92,8 +92,7 @@ impl Transaction {
     ) -> DbIterator<&'a Self> {
         let cf = self.db.as_inner().get_cf(col);
         assert!(!cf.is_null());
-        let iter = unsafe { self.as_inner().iter(options, cf) };
-        DbIterator::new(iter, dir)
+        unsafe { DbIterator::new(self.as_inner().iter(options, cf), dir) }
     }
 
     pub fn commit(&self) -> Result<()> {

@@ -29,6 +29,16 @@ impl WriteBatch {
         into_result(&status)
     }
 
+    /// Delete entries in the range of ["begin_key", "end_key").
+    pub fn delete_range(&mut self, col: usize, begin_key: &[u8], end_key: &[u8]) -> Result<()> {
+        let cf = self.db.as_inner().get_cf(col);
+        assert!(!cf.is_null());
+        moveit! {
+            let status = unsafe { self.as_inner_mut().DeleteRange(cf, &begin_key.into(), &end_key.into()) };
+        }
+        into_result(&status)
+    }
+
     pub fn as_inner_mut(&mut self) -> Pin<&mut autorocks_sys::rocksdb::WriteBatch> {
         match self.inner.as_mut() {
             Some(x) => x,
