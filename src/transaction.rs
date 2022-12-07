@@ -1,4 +1,4 @@
-use std::{marker::PhantomData, pin::Pin};
+use std::pin::Pin;
 
 use autorocks_sys::{
     rocksdb::{PinnableSlice, ReadOptions},
@@ -6,7 +6,9 @@ use autorocks_sys::{
 };
 use moveit::moveit;
 
-use crate::{into_result, slice::as_rust_slice, DbIterator, Result, SnapshotRef, TransactionDb};
+use crate::{
+    into_result, slice::as_rust_slice, DbIterator, Direction, Result, SnapshotRef, TransactionDb,
+};
 
 pub struct Transaction {
     pub(crate) inner: TransactionWrapper,
@@ -75,27 +77,23 @@ impl Transaction {
         }
     }
 
-    pub fn iter(&self, col: usize) -> DbIterator<&'_ Self> {
+    pub fn iter(&self, col: usize, dir: Direction) -> DbIterator<&'_ Self> {
         moveit! {
             let options = ReadOptions::new();
         }
-        self.iter_with_options(&options, col)
+        self.iter_with_options(&options, col, dir)
     }
 
     pub fn iter_with_options<'a>(
         &'a self,
         options: &ReadOptions,
         col: usize,
+        dir: Direction,
     ) -> DbIterator<&'a Self> {
         let cf = self.db.as_inner().get_cf(col);
         assert!(!cf.is_null());
-        let mut iter = unsafe { self.as_inner().iter(options, cf) };
-        iter.as_mut().unwrap().SeekToFirst();
-        DbIterator {
-            inner: iter,
-            just_seeked: true,
-            phantom: PhantomData,
-        }
+        let iter = unsafe { self.as_inner().iter(options, cf) };
+        DbIterator::new(iter, dir)
     }
 
     pub fn commit(&self) -> Result<()> {

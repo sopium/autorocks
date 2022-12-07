@@ -1,7 +1,4 @@
-use std::{
-    marker::PhantomData, mem::MaybeUninit, os::unix::prelude::OsStrExt, path::Path, pin::Pin,
-    sync::Arc,
-};
+use std::{mem::MaybeUninit, os::unix::prelude::OsStrExt, path::Path, pin::Pin, sync::Arc};
 
 use autorocks_sys::{
     new_transaction_db_options, new_write_batch,
@@ -14,7 +11,8 @@ use autorocks_sys::{
 use moveit::{moveit, Emplace, New};
 
 use crate::{
-    into_result, slice::as_rust_slice, DbIterator, Result, Snapshot, Transaction, WriteBatch,
+    into_result, slice::as_rust_slice, DbIterator, Direction, Result, Snapshot, Transaction,
+    WriteBatch,
 };
 
 pub struct DbOptions {
@@ -203,27 +201,23 @@ impl TransactionDb {
         }
     }
 
-    pub fn iter(&self, col: usize) -> DbIterator<&'_ Self> {
+    pub fn iter(&self, col: usize, dir: Direction) -> DbIterator<&'_ Self> {
         moveit! {
             let options = ReadOptions::new();
         }
-        self.iter_with_options(&options, col)
+        self.iter_with_options(&options, col, dir)
     }
 
     pub fn iter_with_options<'a>(
         &'a self,
         options: &ReadOptions,
         col: usize,
+        dir: Direction,
     ) -> DbIterator<&'a Self> {
         let cf = self.inner.get_cf(col);
         assert!(!cf.is_null());
-        let mut iter = unsafe { self.inner.iter(options, cf) };
-        iter.as_mut().unwrap().SeekToFirst();
-        DbIterator {
-            inner: iter,
-            just_seeked: true,
-            phantom: PhantomData,
-        }
+        let iter = unsafe { self.as_inner().iter(options, cf) };
+        DbIterator::new(iter, dir)
     }
 
     pub fn new_write_batch(&self) -> WriteBatch {
@@ -307,27 +301,23 @@ impl ReadOnlyDb {
         Ok(Some(as_rust_slice(slice)))
     }
 
-    pub fn iter(&self, col: usize) -> DbIterator<&'_ Self> {
+    pub fn iter(&self, col: usize, dir: Direction) -> DbIterator<&'_ Self> {
         moveit! {
             let options = ReadOptions::new();
         }
-        self.iter_with_options(&options, col)
+        self.iter_with_options(&options, col, dir)
     }
 
     pub fn iter_with_options<'a>(
         &'a self,
         options: &ReadOptions,
         col: usize,
+        dir: Direction,
     ) -> DbIterator<&'a Self> {
         let cf = self.inner.get_cf(col);
         assert!(!cf.is_null());
-        let mut iter = unsafe { self.inner.iter(options, cf) };
-        iter.as_mut().unwrap().SeekToFirst();
-        DbIterator {
-            inner: iter,
-            just_seeked: true,
-            phantom: PhantomData,
-        }
+        let iter = unsafe { self.as_inner().iter(options, cf) };
+        DbIterator::new(iter, dir)
     }
 
     pub fn as_inner(&self) -> &ReadOnlyDbWrapper {

@@ -112,10 +112,10 @@ fn test_iter() {
     let snap1 = tx.snapshot();
     let snap = db.snapshot();
     db.put(0, b"key1", b"value1").unwrap();
-    assert_eq!(snap.iter(0).count(), 1);
-    assert_eq!(snap1.iter(0).count(), 1);
-    assert_eq!(db.iter(0).count(), 2);
-    assert_eq!(tx.iter(0).count(), 2);
+    assert_eq!(snap.iter(0, Direction::Forward).count(), 1);
+    assert_eq!(snap1.iter(0, Direction::Backward).count(), 1);
+    assert_eq!(db.iter(0, Direction::Backward).count(), 2);
+    assert_eq!(tx.iter(0, Direction::Forward).count(), 2);
 }
 
 #[test]
