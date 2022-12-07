@@ -30,6 +30,16 @@ impl<T> DbIterator<T> {
             phantom: PhantomData,
         }
     }
+
+    pub fn seek(&mut self, key: &[u8]) {
+        self.inner.as_mut().unwrap().Seek(&key.into());
+        self.just_seeked = true;
+    }
+
+    pub fn seek_for_prev(&mut self, key: &[u8]) {
+        self.inner.as_mut().unwrap().SeekForPrev(&key.into());
+        self.just_seeked = true;
+    }
 }
 
 impl<T> core::iter::Iterator for DbIterator<T> {
