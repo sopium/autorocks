@@ -303,6 +303,11 @@ struct TransactionWrapper
         return tx->GetSnapshot();
     }
 
+    Status rollback() const
+    {
+        return tx->Rollback();
+    }
+
     Status commit() const
     {
         return tx->Commit();

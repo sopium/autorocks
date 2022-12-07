@@ -95,6 +95,13 @@ impl Transaction {
         unsafe { DbIterator::new(self.as_inner().iter(options, cf), dir) }
     }
 
+    pub fn rollback(&self) -> Result<()> {
+        moveit! {
+            let status = self.inner.rollback();
+        }
+        into_result(&status)
+    }
+
     pub fn commit(&self) -> Result<()> {
         moveit! {
             let status = self.inner.commit();
