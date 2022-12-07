@@ -40,6 +40,20 @@ impl<T> DbIterator<T> {
         self.inner.as_mut().unwrap().SeekForPrev(&key.into());
         self.just_seeked = true;
     }
+
+    pub fn valid(&self) -> bool {
+        self.inner.as_ref().unwrap().Valid()
+    }
+
+    pub fn key(&self) -> &[u8] {
+        debug_assert!(self.valid());
+        unsafe { as_rust_slice1(self.inner.as_ref().unwrap().key()) }
+    }
+
+    pub fn value(&self) -> &[u8] {
+        debug_assert!(self.valid());
+        unsafe { as_rust_slice1(self.inner.as_ref().unwrap().value()) }
+    }
 }
 
 impl<T> core::iter::Iterator for DbIterator<T> {
@@ -56,10 +70,7 @@ impl<T> core::iter::Iterator for DbIterator<T> {
             self.just_seeked = false;
         }
         if inner.Valid() {
-            let v = (
-                as_rust_slice1(&inner.key()).into(),
-                as_rust_slice1(&inner.value()).into(),
-            );
+            let v = (self.key().into(), self.value().into());
             Some(v)
         } else {
             None

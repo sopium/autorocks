@@ -1,6 +1,6 @@
 use autorocks_sys::rocksdb::{PinnableSlice, Slice};
 
-pub(crate) fn as_rust_slice1(s: &Slice) -> &[u8] {
+pub(crate) unsafe fn as_rust_slice1<'a>(s: Slice) -> &'a [u8] {
     unsafe { core::slice::from_raw_parts(s.data_ as *const _, s.size_) }
 }
 
