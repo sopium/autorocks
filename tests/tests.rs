@@ -13,7 +13,7 @@ fn open_temp(columns: usize) -> TransactionDb {
 }
 
 #[test]
-fn test_db_open_put_get_delete_drop_cf() {
+fn test_db_open_put_get_delete_drop_cf_int_property() {
     let mut db = open_temp(1);
     db.put(0, b"key", b"value").unwrap();
     assert_eq!(db.default_col(), 1);
@@ -32,6 +32,11 @@ fn test_db_open_put_get_delete_drop_cf() {
     assert!(v.is_none());
 
     db.drop_cf(0).unwrap();
+
+    let size = db
+        .get_int_property(db.default_col(), "rocksdb.size-all-mem-tables")
+        .unwrap();
+    assert!(size > 0);
 }
 
 #[test]

@@ -183,6 +183,17 @@ impl TransactionDb {
         Ok(Some(as_rust_slice(slice)))
     }
 
+    pub fn get_int_property(&self, col: usize, property: &str) -> Option<u64> {
+        let cf = self.inner.get_cf(col);
+        assert!(!cf.is_null());
+        let mut val = 0;
+        let got = unsafe {
+            self.inner
+                .get_int_property(cf, &property.as_bytes().into(), &mut val)
+        };
+        got.then_some(val)
+    }
+
     pub fn snapshot(&self) -> Snapshot {
         Snapshot {
             inner: self.inner.get_snapshot(),

@@ -207,6 +207,11 @@ struct TransactionDBWrapper
         return db->Delete(options, cf, key);
     }
 
+    bool get_int_property(ColumnFamilyHandle *cf, const Slice &property, uint64_t *value) const
+    {
+        return db->GetIntProperty(cf, property, value);
+    }
+
     unique_ptr<Iterator> iter(const ReadOptions &options, ColumnFamilyHandle *cf) const
     {
         return unique_ptr<Iterator>(db->NewIterator(options, cf));
