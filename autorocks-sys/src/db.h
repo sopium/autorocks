@@ -219,9 +219,9 @@ struct TransactionDBWrapper
 
     TransactionWrapper begin(const WriteOptions &write_options, const TransactionOptions &transaction_options) const;
 
-    Status write(const WriteOptions &wopts, WriteBatch *updates) const
+    Status write(const WriteOptions &wopts, const TransactionDBWriteOptimizations &opts, WriteBatch *updates) const
     {
-        return db->Write(wopts, updates);
+        return db->Write(wopts, opts, updates);
     }
 
     const Snapshot *get_snapshot() const

@@ -3,8 +3,8 @@ use std::{mem::MaybeUninit, os::unix::prelude::OsStrExt, path::Path, pin::Pin, s
 use autorocks_sys::{
     new_transaction_db_options, new_write_batch,
     rocksdb::{
-        CompressionType, PinnableSlice, ReadOptions, TransactionDBOptions, TransactionOptions,
-        WriteOptions,
+        CompressionType, PinnableSlice, ReadOptions, TransactionDBOptions,
+        TransactionDBWriteOptimizations, TransactionOptions, WriteOptions,
     },
     DbOptionsWrapper, ReadOnlyDbWrapper, TransactionDBWrapper, TransactionWrapper,
 };
@@ -257,11 +257,12 @@ impl TransactionDb {
     pub fn write_with_options(
         &self,
         options: &WriteOptions,
+        optimizations: &TransactionDBWriteOptimizations,
         updates: &mut WriteBatch,
     ) -> Result<()> {
         moveit! {
             let status = unsafe {
-                self.inner.write(options, updates.as_inner_mut().get_unchecked_mut())
+                self.inner.write(options, optimizations, updates.as_inner_mut().get_unchecked_mut())
             };
         }
         into_result(&status)
@@ -270,8 +271,9 @@ impl TransactionDb {
     pub fn write(&self, updates: &mut WriteBatch) -> Result<()> {
         moveit! {
             let options = WriteOptions::new();
+            let optimizations = TransactionDBWriteOptimizations::new();
         }
-        self.write_with_options(&options, updates)
+        self.write_with_options(&options, &optimizations, updates)
     }
 
     pub fn as_inner(&self) -> &TransactionDBWrapper {

@@ -10,6 +10,7 @@ autocxx::include_cpp! {
     safety!(unsafe_ffi)
 
     generate_pod!("rocksdb::WriteOptions")
+    generate_pod!("rocksdb::TransactionDBWriteOptimizations")
     generate_pod!("rocksdb::TransactionOptions")
     generate!("rocksdb::DB")
     generate!("rocksdb::WriteBatch")
