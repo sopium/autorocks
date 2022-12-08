@@ -20,7 +20,7 @@ pub struct DbIterator<T> {
 impl<T> DbIterator<T> {
     /// Safety: inner must NOT be null.
     pub(crate) unsafe fn new(mut inner: UniquePtr<Iterator>, direction: Direction) -> Self {
-        let ptr = unsafe { unwrap_unchecked(inner.as_mut()) };
+        let ptr = unwrap_unchecked(inner.as_mut());
         match direction {
             Direction::Forward => ptr.SeekToFirst(),
             Direction::Backward => ptr.SeekToLast(),

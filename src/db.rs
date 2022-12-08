@@ -107,6 +107,7 @@ impl TransactionDb {
     pub fn drop_cf(&mut self, col: usize) -> Result<()> {
         let inner = Arc::get_mut(&mut self.inner).ok_or_else(|| RocksDBStatusError {
             msg: "Arc::get_mut failed".into(),
+            sub_code: autorocks_sys::rocksdb::Status_SubCode::kNone,
             code: autorocks_sys::rocksdb::Status_Code::kBusy,
         })?;
         moveit! {

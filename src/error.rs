@@ -1,10 +1,11 @@
 use std::fmt;
 
-use autorocks_sys::rocksdb::{Status, Status_Code};
+use autorocks_sys::rocksdb::{Status, Status_Code, Status_SubCode};
 
 pub struct RocksDBStatusError {
     pub(crate) msg: String,
     pub code: Status_Code,
+    pub sub_code: Status_SubCode,
 }
 
 impl fmt::Debug for RocksDBStatusError {
@@ -32,6 +33,7 @@ pub fn into_result(status: &Status) -> Result<()> {
     } else {
         Err(RocksDBStatusError {
             code: status.code(),
+            sub_code: status.subcode(),
             msg: status.ToString().to_string_lossy().into(),
         })
     }
