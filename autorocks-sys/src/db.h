@@ -169,6 +169,33 @@ struct TransactionDBWrapper
         }
     }
 
+    Status set_options(
+        ColumnFamilyHandle *cf,
+        Slice const *keys,
+        Slice const *values,
+        size_t len) const
+    {
+        auto options = unordered_map<string, string>();
+        for (size_t i = 0; i < len; i++)
+        {
+            options[keys[i].ToString()] = values[i].ToString();
+        }
+        return db->SetOptions(cf, options);
+    }
+
+    Status set_db_options(
+        Slice const *keys,
+        Slice const *values,
+        size_t len) const
+    {
+        auto options = unordered_map<string, string>();
+        for (size_t i = 0; i < len; i++)
+        {
+            options[keys[i].ToString()] = values[i].ToString();
+        }
+        return db->SetDBOptions(options);
+    }
+
     ColumnFamilyHandle *get_cf(size_t cf) const
     {
         if (cf >= cf_handles.size())

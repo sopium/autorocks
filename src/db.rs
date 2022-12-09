@@ -3,7 +3,7 @@ use std::{mem::MaybeUninit, os::unix::prelude::OsStrExt, path::Path, pin::Pin, s
 use autorocks_sys::{
     new_transaction_db_options, new_write_batch,
     rocksdb::{
-        CompressionType, PinnableSlice, ReadOptions, TransactionDBOptions,
+        CompressionType, PinnableSlice, ReadOptions, Slice, TransactionDBOptions,
         TransactionDBWriteOptimizations, TransactionOptions, WriteOptions,
     },
     DbOptionsWrapper, ReadOnlyDbWrapper, TransactionDBWrapper, TransactionWrapper,
@@ -274,6 +274,37 @@ impl TransactionDb {
             let optimizations = TransactionDBWriteOptimizations::new();
         }
         self.write_with_options(&options, &optimizations, updates)
+    }
+
+    pub fn set_options<'a>(
+        &self,
+        col: usize,
+        options: impl IntoIterator<Item = (&'a [u8], &'a [u8])>,
+    ) -> Result<()> {
+        let cf = self.inner.get_cf(col);
+        assert!(!cf.is_null());
+        let (keys, values): (Vec<Slice>, Vec<Slice>) = options
+            .into_iter()
+            .map(|(k, v)| (k.into(), v.into()))
+            .unzip();
+        moveit! {
+            let status = unsafe { self.inner.set_options(cf, keys.as_ptr(), values.as_ptr(), keys.len()) };
+        }
+        into_result(&status)
+    }
+
+    pub fn set_db_options<'a>(
+        &self,
+        options: impl IntoIterator<Item = (&'a [u8], &'a [u8])>,
+    ) -> Result<()> {
+        let (keys, values): (Vec<Slice>, Vec<Slice>) = options
+            .into_iter()
+            .map(|(k, v)| (k.into(), v.into()))
+            .unzip();
+        moveit! {
+            let status = unsafe { self.inner.set_db_options(keys.as_ptr(), values.as_ptr(), keys.len()) };
+        }
+        into_result(&status)
     }
 
     pub fn as_inner(&self) -> &TransactionDBWrapper {
