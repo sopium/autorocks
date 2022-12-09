@@ -161,6 +161,14 @@ struct TransactionDBWrapper
         return status;
     }
 
+    ~TransactionDBWrapper()
+    {
+        for (auto cf : cf_handles)
+        {
+            db->DestroyColumnFamilyHandle(cf);
+        }
+    }
+
     ColumnFamilyHandle *get_cf(size_t cf) const
     {
         if (cf >= cf_handles.size())
@@ -256,6 +264,14 @@ struct ReadOnlyDbWrapper
             db.reset(ptr);
         }
         return status;
+    }
+
+    ~ReadOnlyDbWrapper()
+    {
+        for (auto cf : cf_handles)
+        {
+            db->DestroyColumnFamilyHandle(cf);
+        }
     }
 
     ColumnFamilyHandle *get_cf(size_t cf) const
