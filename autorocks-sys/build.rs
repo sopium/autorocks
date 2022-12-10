@@ -5,8 +5,7 @@
  */
 
 use std::env::var;
-use std::path::Path;
-use std::{env, fs, process::Command};
+use std::{env, fs};
 
 fn main() {
     let target = env::var("TARGET").unwrap();
@@ -67,6 +66,13 @@ fn main() {
 
     builder.compile("cozorocks");
     println!("cargo:rustc-link-lib=static=rocksdb");
+    #[cfg(feature = "snappy")]
+    {
+        pkg_config::Config::new()
+            .statik(true)
+            .probe("snappy")
+            .expect("the snappy features is enabled but pkg-config cannot find the library");
+    }
     if cfg!(feature = "zstd") {
         println!("cargo:rustc-link-lib=static=zstd");
     }
@@ -75,10 +81,6 @@ fn main() {
     }
     if cfg!(feature = "lib-uring") {
         println!("cargo:rustc-link-lib=static=uring");
-    }
-
-    if !Path::new("rocksdb/AUTHORS").exists() {
-        update_submodules();
     }
 
     if !try_to_find_and_link_lib("ROCKSDB") {
@@ -144,10 +146,6 @@ fn build_rocksdb() {
     config.include("rocksdb/third-party/gtest-1.8.1/fused-src/");
 
     if cfg!(feature = "snappy") {
-        pkg_config::Config::new()
-            .statik(true)
-            .probe("snappy")
-            .expect("the snappy features is enabled but pkg-config cannot find the library");
         config.define("SNAPPY", Some("1"));
     }
 
@@ -342,12 +340,12 @@ fn try_to_find_and_link_lib(lib_name: &str) -> bool {
     println!("cargo:rerun-if-env-changed={}_STATIC", lib_name);
 
     if let Ok(lib_dir) = env::var(&format!("{}_LIB_DIR", lib_name)) {
-        println!("cargo:rustc-link-search=native={}", lib_dir);
         let mode = match env::var_os(&format!("{}_STATIC", lib_name)) {
             Some(_) => "static",
             None => "dylib",
         };
         println!("cargo:rustc-link-lib={}={}", mode, lib_name.to_lowercase());
+        println!("cargo:rustc-link-search=native={}", lib_dir);
         return true;
     }
     false
@@ -361,24 +359,4 @@ fn cxx_standard() -> String {
             cxx_std
         }
     })
-}
-
-fn update_submodules() {
-    let program = "git";
-    let dir = "../";
-    let args = ["submodule", "update", "--init"];
-    println!(
-        "Running command: \"{} {}\" in dir: {}",
-        program,
-        args.join(" "),
-        dir
-    );
-    let ret = Command::new(program).current_dir(dir).args(args).status();
-
-    match ret.map(|status| (status.success(), status.code())) {
-        Ok((true, _)) => (),
-        Ok((false, Some(c))) => panic!("Command failed with error code {}", c),
-        Ok((false, None)) => panic!("Command got killed"),
-        Err(e) => panic!("Command failed with error: {}", e),
-    }
 }
