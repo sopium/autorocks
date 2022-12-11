@@ -276,7 +276,7 @@ impl TransactionDb {
         self.write_with_options(&options, &optimizations, updates)
     }
 
-    pub fn set_options<'a, K: AsRef<[u8]>, V: AsRef<[u8]>>(
+    pub fn set_options<K: AsRef<[u8]>, V: AsRef<[u8]>>(
         &self,
         col: usize,
         options: impl IntoIterator<Item = (K, V)>,
@@ -293,7 +293,7 @@ impl TransactionDb {
         into_result(&status)
     }
 
-    pub fn set_db_options<'a, K: AsRef<[u8]>, V: AsRef<[u8]>>(
+    pub fn set_db_options<K: AsRef<[u8]>, V: AsRef<[u8]>>(
         &self,
         options: impl IntoIterator<Item = (K, V)>,
     ) -> Result<()> {
