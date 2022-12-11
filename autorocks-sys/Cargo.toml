@@ -19,8 +19,7 @@ autocxx = "0.23.1"
 [features]
 default = ["snappy"]
 io-uring = ["pkg-config"]
-# Use system installed snappy
-snappy = ["pkg-config"]
+snappy = []
 lz4 = ["lz4-sys"]
 zstd = ["zstd-sys"]
 

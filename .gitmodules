@@ -1,3 +1,6 @@
 [submodule "autorocks-sys/rocksdb"]
 	path = autorocks-sys/rocksdb
 	url = https://github.com/facebook/rocksdb.git
+[submodule "autorocks-sys/snappy"]
+	path = autorocks-sys/snappy
+	url = https://github.com/google/snappy.git

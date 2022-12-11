@@ -68,10 +68,7 @@ fn main() {
     println!("cargo:rustc-link-lib=static=rocksdb");
     #[cfg(feature = "snappy")]
     {
-        pkg_config::Config::new()
-            .statik(true)
-            .probe("snappy")
-            .expect("the snappy features is enabled but pkg-config cannot find the library");
+        build_snappy();
     }
     if cfg!(feature = "zstd") {
         println!("cargo:rustc-link-lib=static=zstd");
@@ -147,6 +144,7 @@ fn build_rocksdb() {
 
     if cfg!(feature = "snappy") {
         config.define("SNAPPY", Some("1"));
+        config.include("snappy");
     }
 
     if cfg!(feature = "lz4") {
@@ -326,6 +324,40 @@ fn build_rocksdb() {
     config.cpp(true);
     config.flag_if_supported("-std=c++17");
     config.compile("librocksdb.a");
+}
+
+#[cfg(feature = "snappy")]
+fn build_snappy() {
+    let target = env::var("TARGET").unwrap();
+    let endianness = env::var("CARGO_CFG_TARGET_ENDIAN").unwrap();
+    let mut config = cc::Build::new();
+
+    config.include("snappy/");
+    config.include(".");
+    config.define("NDEBUG", Some("1"));
+    config.extra_warnings(false);
+
+    if !target.contains("windows") {
+        config.define("HAVE_SYS_UIO_H", "1");
+    }
+
+    if target.contains("msvc") {
+        config.flag("-EHsc");
+    } else {
+        // Snappy requires C++11.
+        // See: https://github.com/google/snappy/blob/master/CMakeLists.txt#L32-L38
+        config.flag("-std=c++11");
+    }
+
+    if endianness == "big" {
+        config.define("SNAPPY_IS_BIG_ENDIAN", Some("1"));
+    }
+
+    config.file("snappy/snappy.cc");
+    config.file("snappy/snappy-sinksource.cc");
+    config.file("snappy/snappy-c.cc");
+    config.cpp(true);
+    config.compile("libsnappy.a");
 }
 
 fn try_to_find_and_link_lib(lib_name: &str) -> bool {
