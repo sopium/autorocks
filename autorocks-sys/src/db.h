@@ -336,12 +336,12 @@ struct TransactionWrapper
         return tx->Get(options, cf, key, slice);
     }
 
-    Status put(ColumnFamilyHandle *cf, const Slice &key, const Slice &value) const
+    Status put(ColumnFamilyHandle *cf, const Slice &key, const Slice &value)
     {
         return tx->Put(cf, key, value);
     }
 
-    Status del(ColumnFamilyHandle *cf, const Slice &key) const
+    Status del(ColumnFamilyHandle *cf, const Slice &key)
     {
         return tx->Delete(cf, key);
     }
@@ -351,12 +351,12 @@ struct TransactionWrapper
         return tx->GetSnapshot();
     }
 
-    Status rollback() const
+    Status rollback()
     {
         return tx->Rollback();
     }
 
-    Status commit() const
+    Status commit()
     {
         return tx->Commit();
     }

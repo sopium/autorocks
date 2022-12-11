@@ -16,20 +16,20 @@ pub struct Transaction {
 }
 
 impl Transaction {
-    pub fn put(&self, col: usize, key: &[u8], value: &[u8]) -> Result<()> {
+    pub fn put(&mut self, col: usize, key: &[u8], value: &[u8]) -> Result<()> {
         let cf = self.db.as_inner().get_cf(col);
         assert!(!cf.is_null());
         moveit! {
-            let status = unsafe { self.inner.put(cf, &key.into(), &value.into()) };
+            let status = unsafe { self.as_inner_mut().put(cf, &key.into(), &value.into()) };
         }
         into_result(&status)
     }
 
-    pub fn delete(&self, col: usize, key: &[u8]) -> Result<()> {
+    pub fn delete(&mut self, col: usize, key: &[u8]) -> Result<()> {
         let cf = self.db.as_inner().get_cf(col);
         assert!(!cf.is_null());
         moveit! {
-            let status = unsafe { self.inner.del(cf, &key.into()) };
+            let status = unsafe { self.as_inner_mut().del(cf, &key.into()) };
         }
         into_result(&status)
     }
@@ -95,21 +95,25 @@ impl Transaction {
         unsafe { DbIterator::new(self.as_inner().iter(options, cf), dir) }
     }
 
-    pub fn rollback(&self) -> Result<()> {
+    pub fn rollback(&mut self) -> Result<()> {
         moveit! {
-            let status = self.inner.rollback();
+            let status = self.as_inner_mut().rollback();
         }
         into_result(&status)
     }
 
-    pub fn commit(&self) -> Result<()> {
+    pub fn commit(&mut self) -> Result<()> {
         moveit! {
-            let status = self.inner.commit();
+            let status = self.as_inner_mut().commit();
         }
         into_result(&status)
     }
 
-    pub fn as_inner(&self) -> &TransactionWrapper {
+    fn as_inner(&self) -> &TransactionWrapper {
         &self.inner
+    }
+
+    fn as_inner_mut(&mut self) -> Pin<&mut TransactionWrapper> {
+        Pin::new(&mut self.inner)
     }
 }

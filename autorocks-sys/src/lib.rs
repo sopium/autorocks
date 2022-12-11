@@ -42,14 +42,19 @@ impl Unpin for TransactionDBWrapper {}
 impl Unpin for ReadOnlyDbWrapper {}
 impl Unpin for TransactionWrapper {}
 
-// Thread safe.
 unsafe impl Send for TransactionDBWrapper {}
 unsafe impl Sync for TransactionDBWrapper {}
+
 unsafe impl Send for ReadOnlyDbWrapper {}
 unsafe impl Sync for ReadOnlyDbWrapper {}
 
 unsafe impl Send for TransactionWrapper {}
+// Sync because mutable methods take Pin<&mut Self>.
+unsafe impl Sync for TransactionWrapper {}
+
 unsafe impl Send for rocksdb::WriteBatch {}
+// Sync because mutable methods take Pin<&mut Self>.
+unsafe impl Sync for rocksdb::WriteBatch {}
 
 impl From<&[u8]> for rocksdb::Slice {
     fn from(s: &[u8]) -> rocksdb::Slice {

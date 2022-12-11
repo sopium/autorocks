@@ -276,16 +276,16 @@ impl TransactionDb {
         self.write_with_options(&options, &optimizations, updates)
     }
 
-    pub fn set_options<'a>(
+    pub fn set_options<'a, K: AsRef<[u8]>, V: AsRef<[u8]>>(
         &self,
         col: usize,
-        options: impl IntoIterator<Item = (&'a [u8], &'a [u8])>,
+        options: impl IntoIterator<Item = (K, V)>,
     ) -> Result<()> {
         let cf = self.inner.get_cf(col);
         assert!(!cf.is_null());
         let (keys, values): (Vec<Slice>, Vec<Slice>) = options
             .into_iter()
-            .map(|(k, v)| (k.into(), v.into()))
+            .map(|(k, v)| (k.as_ref().into(), v.as_ref().into()))
             .unzip();
         moveit! {
             let status = unsafe { self.inner.set_options(cf, keys.as_ptr(), values.as_ptr(), keys.len()) };
@@ -293,13 +293,13 @@ impl TransactionDb {
         into_result(&status)
     }
 
-    pub fn set_db_options<'a>(
+    pub fn set_db_options<'a, K: AsRef<[u8]>, V: AsRef<[u8]>>(
         &self,
-        options: impl IntoIterator<Item = (&'a [u8], &'a [u8])>,
+        options: impl IntoIterator<Item = (K, V)>,
     ) -> Result<()> {
         let (keys, values): (Vec<Slice>, Vec<Slice>) = options
             .into_iter()
-            .map(|(k, v)| (k.into(), v.into()))
+            .map(|(k, v)| (k.as_ref().into(), v.as_ref().into()))
             .unzip();
         moveit! {
             let status = unsafe { self.inner.set_db_options(keys.as_ptr(), values.as_ptr(), keys.len()) };

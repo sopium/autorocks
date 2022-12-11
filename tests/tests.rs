@@ -106,7 +106,7 @@ fn test_tx_and_tx_snapshot() {
     moveit! {
         let mut slice = PinnableSlice::new();
     }
-    let tx = db.begin_transaction();
+    let mut tx = db.begin_transaction();
 
     db.put(0, b"key", b"value1").unwrap();
 
