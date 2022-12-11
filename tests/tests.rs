@@ -42,10 +42,8 @@ fn test_db_open_put_get_delete_drop_cf_int_property() {
 #[test]
 fn test_db_set_options() {
     let db = open_temp(1);
-    db.set_db_options([("max_subcompactions".as_bytes(), "2".as_bytes())])
-        .unwrap();
-    db.set_options(0, [("ttl".as_bytes(), "36000".as_bytes())])
-        .unwrap();
+    db.set_db_options([("max_subcompactions", "2")]).unwrap();
+    db.set_options(0, [("ttl", "36000")]).unwrap();
 }
 
 #[test]
