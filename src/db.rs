@@ -103,6 +103,23 @@ impl TransactionDb {
         self.inner.default_col()
     }
 
+    /// Delete all keys in a column family.
+    ///
+    /// Internally, this drops and re-creates the column family.
+    ///
+    /// This only works when self is the sole instance of the db.
+    pub fn clear_cf(&mut self, col: usize) -> Result<()> {
+        let inner = Arc::get_mut(&mut self.inner).ok_or_else(|| RocksDBStatusError {
+            msg: "Arc::get_mut failed".into(),
+            sub_code: autorocks_sys::rocksdb::Status_SubCode::kNone,
+            code: autorocks_sys::rocksdb::Status_Code::kBusy,
+        })?;
+        moveit! {
+            let status = Pin::new(inner).clear_cf(col);
+        }
+        into_result(&status)
+    }
+
     /// This only works when self is the sole instance of the db.
     pub fn drop_cf(&mut self, col: usize) -> Result<()> {
         let inner = Arc::get_mut(&mut self.inner).ok_or_else(|| RocksDBStatusError {

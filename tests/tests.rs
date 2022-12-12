@@ -161,3 +161,14 @@ fn test_write_batch() {
     assert!(db.get(0, b"key", buf.as_mut()).unwrap().is_none());
     assert!(db.get(0, b"key1", buf.as_mut()).unwrap().is_some());
 }
+
+#[test]
+fn test_clear_cf() {
+    let (mut db, _dir) = open_temp(1);
+    db.put(0, b"key", b"value").unwrap();
+    db.put(0, b"key1", b"value1").unwrap();
+    db.clear_cf(0).unwrap();
+    assert_eq!(db.iter(0, Direction::Forward).count(), 0);
+    db.put(0, b"key", b"value").unwrap();
+    assert_eq!(db.iter(0, Direction::Forward).count(), 1);
+}

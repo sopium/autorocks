@@ -210,6 +210,30 @@ struct TransactionDBWrapper
         return cf_handles.size() - 1;
     }
 
+    Status clear_cf(size_t col)
+    {
+        auto cf = get_cf(col);
+        if (!cf)
+        {
+            return Status::OK();
+        }
+
+        auto options = db->GetOptions(cf);
+
+        Status status = db->DropColumnFamily(cf);
+        if (!status.ok())
+        {
+            return status;
+        }
+        status = db->DestroyColumnFamilyHandle(cf);
+        if (!status.ok())
+        {
+            return status;
+        }
+        status = db->CreateColumnFamily(options, to_string(col), &cf_handles[col]);
+        return status;
+    }
+
     Status drop_cf(size_t col)
     {
         auto cf = get_cf(col);
