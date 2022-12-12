@@ -32,6 +32,7 @@ autocxx::include_cpp! {
     generate!("ReadOptionsWrapper")
     generate!("DbOptionsWrapper")
     generate!("TransactionDBWrapper")
+    generate!("SharedSnapshotWrapper")
     generate!("ReadOnlyDbWrapper")
     generate!("TransactionWrapper")
 }
@@ -41,6 +42,7 @@ pub use ffi::*;
 impl Unpin for TransactionDBWrapper {}
 impl Unpin for ReadOnlyDbWrapper {}
 impl Unpin for TransactionWrapper {}
+impl Unpin for SharedSnapshotWrapper {}
 
 unsafe impl Send for TransactionDBWrapper {}
 unsafe impl Sync for TransactionDBWrapper {}
@@ -51,6 +53,9 @@ unsafe impl Sync for ReadOnlyDbWrapper {}
 unsafe impl Send for TransactionWrapper {}
 // Sync because mutable methods take Pin<&mut Self>.
 unsafe impl Sync for TransactionWrapper {}
+
+unsafe impl Send for SharedSnapshotWrapper {}
+unsafe impl Sync for SharedSnapshotWrapper {}
 
 unsafe impl Send for rocksdb::WriteBatch {}
 // Sync because mutable methods take Pin<&mut Self>.

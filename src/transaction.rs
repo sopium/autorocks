@@ -1,13 +1,14 @@
-use std::pin::Pin;
+use std::{mem::MaybeUninit, pin::Pin};
 
 use autorocks_sys::{
     rocksdb::{PinnableSlice, ReadOptions},
-    TransactionWrapper,
+    SharedSnapshotWrapper, TransactionWrapper,
 };
-use moveit::moveit;
+use moveit::{moveit, New};
 
 use crate::{
-    into_result, slice::as_rust_slice, DbIterator, Direction, Result, SnapshotRef, TransactionDb,
+    into_result, slice::as_rust_slice, DbIterator, Direction, Result, SharedSnapshot, SnapshotRef,
+    TransactionDb,
 };
 
 pub struct Transaction {
@@ -74,6 +75,27 @@ impl Transaction {
         SnapshotRef {
             inner: unsafe { snap.as_ref() }.unwrap(),
             tx: self,
+        }
+    }
+
+    /// Similar to `snapshot`, but the returned snapshot can outlive the
+    /// transaction.
+    ///
+    /// # Panics
+    ///
+    /// If there are no snapshot set for this transaction.
+    pub fn timestamped_snapshot(&self) -> SharedSnapshot {
+        let mut snap: MaybeUninit<SharedSnapshotWrapper> = MaybeUninit::uninit();
+        unsafe {
+            self.as_inner()
+                .timestamped_snapshot()
+                .new(Pin::new(&mut snap));
+        }
+        let snap = unsafe { snap.assume_init() };
+        assert!(!snap.get().is_null());
+        SharedSnapshot {
+            inner: snap,
+            db: self.db.clone(),
         }
     }
 

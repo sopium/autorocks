@@ -1,6 +1,6 @@
 use std::{marker::PhantomData, pin::Pin};
 
-use autorocks_sys::{rocksdb::PinnableSlice, ReadOptionsWrapper};
+use autorocks_sys::{rocksdb::PinnableSlice, ReadOptionsWrapper, SharedSnapshotWrapper};
 use moveit::moveit;
 
 use crate::{DbIterator, Direction, Result, Transaction, TransactionDb};
@@ -50,6 +50,44 @@ impl Drop for Snapshot {
     fn drop(&mut self) {
         unsafe {
             self.db.as_inner().release_snapshot(self.inner);
+        }
+    }
+}
+
+pub struct SharedSnapshot {
+    pub(crate) inner: SharedSnapshotWrapper,
+    pub(crate) db: TransactionDb,
+}
+
+impl SharedSnapshot {
+    pub fn get<'b>(
+        &self,
+        col: usize,
+        key: &[u8],
+        buf: Pin<&'b mut PinnableSlice>,
+    ) -> Result<Option<&'b [u8]>> {
+        moveit! {
+            let mut options = ReadOptionsWrapper::new();
+        }
+        unsafe {
+            options.as_mut().set_snapshot(self.inner.get());
+        }
+        self.db.get_with_options((*options).as_ref(), col, key, buf)
+    }
+
+    pub fn iter(&self, col: usize, dir: Direction) -> DbIterator<&'_ Self> {
+        moveit! {
+            let mut options = ReadOptionsWrapper::new();
+        }
+        unsafe {
+            options.as_mut().set_snapshot(self.inner.get());
+        }
+        let iter = self.db.iter_with_options((*options).as_ref(), col, dir);
+        DbIterator {
+            inner: iter.inner,
+            just_seeked: iter.just_seeked,
+            direction: iter.direction,
+            phantom: PhantomData,
         }
     }
 }

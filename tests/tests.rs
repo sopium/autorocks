@@ -109,6 +109,7 @@ fn test_tx_and_tx_snapshot() {
     db.put(0, b"key", b"value1").unwrap();
 
     let snap = tx.snapshot();
+    let snap1 = tx.timestamped_snapshot();
     let v = snap.get(0, b"key", slice.as_mut()).unwrap().unwrap();
     assert_eq!(v, b"value");
     let v = tx.get(0, b"key", slice.as_mut()).unwrap().unwrap();
@@ -122,6 +123,10 @@ fn test_tx_and_tx_snapshot() {
     assert!(v.is_none());
 
     tx.commit().unwrap();
+    drop(tx);
+
+    let v = snap1.get(0, b"key", slice.as_mut()).unwrap().unwrap();
+    assert_eq!(v, b"value");
 }
 
 #[test]
