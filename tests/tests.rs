@@ -1,20 +1,23 @@
 use autorocks::*;
 use autorocks_sys::rocksdb::{CompressionType, PinnableSlice, Status_Code};
 use moveit::moveit;
-use tempfile::tempdir;
+use tempfile::{tempdir, TempDir};
 
-fn open_temp(columns: usize) -> TransactionDb {
+fn open_temp(columns: usize) -> (TransactionDb, TempDir) {
     let dir = tempdir().unwrap();
-    DbOptions::new(dir.path(), columns)
-        .create_if_missing(true)
-        .create_missing_column_families(true)
-        .open()
-        .unwrap()
+    (
+        DbOptions::new(dir.path(), columns)
+            .create_if_missing(true)
+            .create_missing_column_families(true)
+            .open()
+            .unwrap(),
+        dir,
+    )
 }
 
 #[test]
 fn test_db_open_put_get_delete_drop_cf_int_property() {
-    let mut db = open_temp(1);
+    let (mut db, _dir) = open_temp(1);
     db.put(0, b"key", b"value").unwrap();
     assert_eq!(db.default_col(), 1);
     db.put(db.default_col(), b"default", b"default").unwrap();
@@ -41,20 +44,14 @@ fn test_db_open_put_get_delete_drop_cf_int_property() {
 
 #[test]
 fn test_db_set_options() {
-    let db = open_temp(1);
+    let (db, _dir) = open_temp(1);
     db.set_db_options([("max_subcompactions", "2")]).unwrap();
     db.set_options(0, [("ttl", "36000")]).unwrap();
 }
 
 #[test]
 fn test_read_only_db() {
-    let dir = tempdir().unwrap();
-
-    let db = DbOptions::new(dir.path(), 5)
-        .create_if_missing(true)
-        .create_missing_column_families(true)
-        .open()
-        .unwrap();
+    let (db, dir) = open_temp(5);
     db.put(0, b"key", b"value").unwrap();
     drop(db);
 
@@ -81,7 +78,7 @@ fn test_db_open_snappy() {
 
 #[test]
 fn test_snapshot() {
-    let db = open_temp(1);
+    let (db, _dir) = open_temp(1);
     db.put(0, b"key", b"value").unwrap();
     let snap = db.snapshot();
     db.put(0, b"key", b"value1").unwrap();
@@ -99,7 +96,7 @@ fn test_snapshot() {
 
 #[test]
 fn test_tx_and_tx_snapshot() {
-    let db = open_temp(1);
+    let (db, _dir) = open_temp(1);
     db.put(0, b"key", b"value").unwrap();
     moveit! {
         let mut slice = PinnableSlice::new();
@@ -131,7 +128,7 @@ fn test_tx_and_tx_snapshot() {
 
 #[test]
 fn test_iter() {
-    let db = open_temp(1);
+    let (db, _dir) = open_temp(1);
     db.put(0, b"key", b"value").unwrap();
     let tx = db.begin_transaction();
     let snap1 = tx.snapshot();
@@ -152,7 +149,7 @@ fn test_iter() {
 
 #[test]
 fn test_write_batch() {
-    let db = open_temp(1);
+    let (db, _dir) = open_temp(1);
     db.put(0, b"key", b"value").unwrap();
     let mut wb = db.new_write_batch();
     wb.put(0, b"key1", b"value1").unwrap();

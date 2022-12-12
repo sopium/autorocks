@@ -223,6 +223,11 @@ struct TransactionDBWrapper
         {
             return status;
         }
+        status = db->DestroyColumnFamilyHandle(cf);
+        if (!status.ok())
+        {
+            return status;
+        }
         cf_handles[col] = nullptr;
         return status;
     }
